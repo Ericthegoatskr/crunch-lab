@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f1ede3">
+  <meta name="description" content="用握拳捏碎一顆 3D 蠟球。三次握拳，三個破裂階段。">
+  <link rel="icon" href="./public-mark.svg" type="image/svg+xml">
+  <title>蠟球實驗室 · Waxball Lab</title>
+  <script type="module" src="./src/main.js"></script>
+</head>
+<body>
+  <svg xmlns="http://www.w3.org/2000/svg" class="symbols" aria-hidden="true">
+    <symbol id="mark" viewBox="0 0 32 32"><path d="M16 2.5 28 9.3v13.4L16 29.5 4 22.7V9.3Z"/><path d="m4 9.3 12 7 12-7M16 16.3v13.2m-4-15.5 6-6 2.2 5.7"/></symbol>
+    <symbol id="camera-icon" viewBox="0 0 24 24"><rect x="3" y="6" width="12" height="12" rx="2"/><path d="m15 10 6-3v10l-6-3"/></symbol>
+    <symbol id="reset-icon" viewBox="0 0 24 24"><path d="M4 11a8 8 0 1 1 2 7M4 5v6h6"/></symbol>
+    <symbol id="sound-icon" viewBox="0 0 24 24"><path d="M3 9h4l5-4v14l-5-4H3zM16 9a4 4 0 0 1 0 6m3-9a8 8 0 0 1 0 12"/></symbol>
+    <symbol id="muted-icon" viewBox="0 0 24 24"><path d="M3 9h4l5-4v14l-5-4H3zM16 10l5 5m0-5-5 5"/></symbol>
+    <symbol id="arrow-icon" viewBox="0 0 24 24"><path d="M6 18 18 6M8 6h10v10"/></symbol>
+  </svg>
+  <main class="shell">
+    <header class="masthead">
+      <div class="wordmark"><svg class="icon"><use href="#mark"/></svg> WAXBALL LAB</div>
+      <a class="reference" href="https://www.youtube.com/watch?v=Tb3xt4yurXY" target="_blank" rel="noopener noreferrer">靈感影片 <svg class="icon"><use href="#arrow-icon"/></svg></a>
+    </header>
+    <section class="intro" aria-labelledby="title">
+      <h1 id="title">蠟球實驗室<span>.</span></h1>
+      <p>對著鏡頭握拳，把蠟球捏碎。<br class="narrow-break">張開手後，裂痕會留下來。</p>
+    </section>
+    <section class="bench" aria-label="蠟球實驗台">
+      <figure class="stage">
+        <div id="scene" role="img" aria-label="完整的 3D 蠟球"></div>
+        <div class="stage-top"><span><i></i> WAX STUDY</span><span>FIG. 01</span></div>
+        <div class="reticle" aria-hidden="true"></div>
+        <figcaption><span id="specimen">完整蠟球</span><span id="stage-count">00 / 03</span></figcaption>
+        <div class="scene-error" id="scene-error" hidden>無法顯示 3D 蠟球。請使用支援 WebGL 2 的瀏覽器，並開啟硬體加速。</div>
+      </figure>
+      <aside class="controls" aria-label="互動控制">
+        <div class="control-head">
+          <h2>手勢控制</h2>
+          <button id="sound" class="icon-button" type="button" aria-label="音效" aria-pressed="false" title="音效"><svg class="icon"><use href="#muted-icon"/></svg></button>
+        </div>
+        <div class="preview" id="preview" data-live="false">
+          <video id="camera-feed" muted playsinline autoplay aria-label="本機相機預覽"></video>
+          <canvas id="landmarks" aria-hidden="true"></canvas>
+          <div class="preview-placeholder">
+            <svg class="icon"><use href="#camera-icon"/></svg>
+            <span>相機預覽</span>
+          </div>
+          <span class="camera-badge"><i></i><span id="camera-state">未開啟</span></span>
+        </div>
+        <p class="guidance" id="guidance" aria-live="polite">開啟相機後，先張手，再握拳。</p>
+        <button class="camera-button" id="camera-toggle" type="button"><svg class="icon"><use href="#camera-icon"/></svg><span>開啟相機</span></button>
+        <div class="secondary">
+          <button id="squeeze" type="button"><span>手動捏一次</span><kbd>Space</kbd></button>
+          <button id="reset" type="button"><svg class="icon"><use href="#reset-icon"/></svg>重置</button>
+        </div>
+      </aside>
+    </section>
+    <ol class="steps" aria-label="破裂階段">
+      <li><span class="step-index">01</span><span><strong>初裂</strong><small>外殼出現裂縫</small></span></li>
+      <li><span class="step-index">02</span><span><strong>裂開</strong><small>碎片分離，露出內芯</small></span></li>
+      <li><span class="step-index">03</span><span><strong>碎裂</strong><small>外殼散開，內芯壓扁</small></span></li>
+    </ol>
+    <p class="sr-only" id="announcement" aria-live="polite"></p>
+    <footer><span>相機畫面只在瀏覽器內處理。</span><span>握拳 → 張手 → 再握拳</span></footer>
+  </main>
+</body>
+</html>
