@@ -27,6 +27,18 @@
       <h1 id="title">脆皮捏捏模擬器<span>.</span></h1>
       <p>挑一款想捏的。<br class="narrow-break">用手勢感受脆裂或回彈。</p>
     </section>
+    <div class="play-settings">
+      <fieldset class="segmented">
+        <legend>捏幾顆</legend>
+        <label><input class="sr-only" type="radio" name="quantity" value="1" checked><span>捏一顆</span></label>
+        <label><input class="sr-only" type="radio" name="quantity" value="2"><span>捏兩顆</span></label>
+      </fieldset>
+      <fieldset class="segmented" id="picker-target" hidden>
+        <legend>換哪一顆</legend>
+        <label><input class="sr-only" type="radio" name="picker-target" value="0" checked><span>左顆款式</span></label>
+        <label><input class="sr-only" type="radio" name="picker-target" value="1"><span>右顆款式</span></label>
+      </fieldset>
+    </div>
     <fieldset class="picker">
       <legend>選擇捏捏</legend>
       <div class="specimen-options">
@@ -46,16 +58,25 @@
           <input class="sr-only" type="radio" name="squishy" value="doughnut">
           <span class="specimen-choice"><svg aria-hidden="true" viewBox="0 0 44 32"><ellipse cx="22" cy="17" rx="13" ry="10" fill="none" stroke="#ce8e58" stroke-width="7"/><ellipse cx="22" cy="14.5" rx="13" ry="9.5" fill="none" stroke="#eea4b4" stroke-width="7"/><path d="m12 11 3-2m11-3 3 2m4 11 3-2" stroke="#ffe4df" stroke-width="1.5" stroke-linecap="round"/></svg><span><strong>甜甜圈</strong><small>回彈</small></span></span>
         </label>
+        <label class="specimen-option">
+          <input class="sr-only" type="radio" name="squishy" value="macaron">
+          <span class="specimen-choice"><svg aria-hidden="true" viewBox="0 0 44 32"><path fill="#d87492" d="M6 15c0-6 7-10 16-10s16 4 16 10v5c0 5-7 9-16 9S6 25 6 20Z"/><path fill="#8ea9df" d="M6 16c5 3 10 4 16 4s11-1 16-4v5c-4 3-10 4-16 4s-12-1-16-4Z"/><ellipse cx="22" cy="13" rx="16" ry="8" fill="#f3a5b6"/><path d="M12 12c2-2 5-3 8-3" fill="none" stroke="#ffd9df" stroke-width="1.5" stroke-linecap="round"/></svg><span><strong>馬卡龍</strong><small>脆皮</small></span></span>
+        </label>
       </div>
     </fieldset>
     <section class="bench" aria-label="脆皮捏捏實驗台">
-      <figure class="stage" id="stage" data-item="chocolate">
-        <div id="scene" role="img" aria-label="完整的 3D 杜拜巧克力"></div>
-        <div class="stage-top"><span><i></i><span id="plate">DUBAI CHOCOLATE</span></span><span id="figure">FIG. 01</span></div>
-        <div class="reticle" aria-hidden="true"></div>
-        <figcaption><span id="specimen">完整巧克力</span><span id="stage-count">00 / 03</span></figcaption>
-        <div class="scene-error" id="scene-error" hidden>無法顯示 3D 捏捏。請使用支援 WebGL 2 的瀏覽器，並開啟硬體加速。</div>
-      </figure>
+      <div class="stage-pair" id="stage-pair">
+        <div class="stage-slot">
+          <figure class="stage" data-item="chocolate">
+            <div class="scene" role="img" aria-label="完整的 3D 杜拜巧克力"></div>
+            <div class="stage-top"><span><i></i><span class="plate">DUBAI CHOCOLATE</span></span><span class="side-label" hidden></span></div>
+            <div class="reticle" aria-hidden="true"></div>
+            <figcaption><span class="specimen">杜拜巧克力</span><span class="stage-count">00 / 03</span></figcaption>
+            <div class="scene-error" hidden>無法顯示 3D 捏捏。請使用支援 WebGL 2 的瀏覽器，並開啟硬體加速。</div>
+          </figure>
+          <button class="side-squeeze" type="button" hidden>手動捏左顆</button>
+        </div>
+      </div>
       <aside class="controls" aria-label="互動控制">
         <div class="control-head">
           <h2>手勢控制</h2>

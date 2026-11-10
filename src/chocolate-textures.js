@@ -71,6 +71,31 @@ export function cocoaTextures() {
   return {map: texture(color, true), bumpMap: texture(relief)};
 }
 
+export function macaronTextures() {
+  const width=512, height=256;
+  const color=surface(width,height), relief=surface(width,height);
+  const pigment=color.createImageData(width,height);
+  const elevation=relief.createImageData(width,height);
+  const rand=random(1042);
+  const waves=noiseField(38,15,rand);
+  for(let y=0;y<height;y++)for(let x=0;x<width;x++){
+    const index=(y*width+x)*4;
+    const mid=Math.abs(y/height-.5)+(waves(x/width,y/height)*.01);
+    const filling=mid<.050;
+    const foot=!filling && mid<.097;
+    const tone=filling ? [121,156,216] : foot ? [221,112,132] : [242,151,168];
+    const grain=(rand()-.5)*(foot ? 57 : 18);
+    for(let c=0;c<3;c++){
+      pigment.data[index+c]=tone[c]+grain;
+      elevation.data[index+c]=123+grain*(foot?1.65:.7);
+    }
+    pigment.data[index+3]=elevation.data[index+3]=255;
+  }
+  color.putImageData(pigment,0,0);
+  relief.putImageData(elevation,0,0);
+  return {map:texture(color,true),bumpMap:texture(relief)};
+}
+
 function filament(ctx, x, y, dx, dy, bend, width, color) {
   ctx.lineWidth = width;
   ctx.strokeStyle = color;

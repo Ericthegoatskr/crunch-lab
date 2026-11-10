@@ -26,23 +26,40 @@ function waxRadius(n) {
 }
 
 const butterAxes = new T.Vector3(1.42,.65,.72);
+const macaronAxes = new T.Vector3(1.25,.60,1.10);
 
 function specimenPoint(direction, size, shape) {
-  if(shape!=='butter')return direction.clone().multiplyScalar(size);
+  const axes=shape==='butter' ? butterAxes : shape==='macaron' ? macaronAxes : null;
+  if(!axes)return direction.clone().multiplyScalar(size);
+  const exponent=shape==='butter' ? 8 : 4;
   const {x,y,z}=direction;
-  const edge=(Math.abs(x/butterAxes.x)**8+Math.abs(y/butterAxes.y)**8+Math.abs(z/butterAxes.z)**8)**(-1/8);
+  const horizontal=shape==='macaron'
+    ? ((x/axes.x)**2+(z/axes.z)**2)**2
+    : Math.abs(x/axes.x)**exponent+Math.abs(z/axes.z)**exponent;
+  const edge=(horizontal+Math.abs(y/axes.y)**exponent)**(-1/exponent);
   const point=direction.clone().multiplyScalar(edge*size/radius);
-  point.y+=floor+butterAxes.y+.02;
+  if(shape==='macaron'){
+    const filling=1-.067*Math.exp(-((y/.23)**2));
+    point.x*=filling;
+    point.z*=filling;
+  }
+  point.y+=floor+axes.y+.02;
   return point;
 }
 
 export function specimenNormal(direction, shape) {
-  if(shape!=='butter')return direction.clone();
+  const axes=shape==='butter' ? butterAxes : shape==='macaron' ? macaronAxes : null;
+  if(!axes)return direction.clone();
+  if(shape==='macaron'){
+    const {x,y,z}=direction;
+    const radial=(x/axes.x)**2+(z/axes.z)**2;
+    return new T.Vector3(radial*x/axes.x**2,y**3/axes.y**4,radial*z/axes.z**2).normalize();
+  }
   const gradient=(value,axis)=>Math.sign(value)*(Math.abs(value)/axis)**7/axis;
   return new T.Vector3(
-    gradient(direction.x,butterAxes.x),
-    gradient(direction.y,butterAxes.y),
-    gradient(direction.z,butterAxes.z),
+    gradient(direction.x,axes.x),
+    gradient(direction.y,axes.y),
+    gradient(direction.z,axes.z),
   ).normalize();
 }
 

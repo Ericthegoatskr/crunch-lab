@@ -48,11 +48,13 @@ export function playCrack(stage, id){
   if(context?.state!=='running')return;
   const start=context.currentTime+.004;
   const thin=id==='butter';
-  const shift=thin?1.22:1;
+  const macaron=id==='macaron';
+  const shift=thin?1.22:macaron?1.38:1;
   // The low snap supplies the break, while the dry high hits read as individual crumbs.
-  noiseBurst(start,(thin?1130:760),.035,.38,.75);
+  noiseBurst(start,(thin?1130:macaron?1440:760),.035,macaron?.27:.38,.75);
   noiseBurst(start+.001,3100*shift,.026,.54,.62);
   noiseBurst(start+.003,5500*shift,.018,.38,.84);
+  if(macaron)noiseBurst(start+.011,7300,.019,.26,.94);
   const splinters=[.018,.038,.063,.087,.113,.146,.173,.207];
   const count=[0,2,5,8][stage];
   for(let i=0;i<count;i++){

@@ -19,4 +19,9 @@ export const specimens = {
     breakable: false, compression: .57, releaseTime: .11,
     feel: '握拳時糖霜甜甜圈變扁，鬆手後恢復原形。',
   },
+  macaron: {
+    id: 'macaron', name: '馬卡龍', plate: 'MACARON', figure: '05',
+    breakable: true, compression: .39, releaseTime: .089,
+    steps: ['粉色外殼出現細裂', '露出柔軟的藍色夾心', '馬卡龍脆殼散開'],
+  },
 };

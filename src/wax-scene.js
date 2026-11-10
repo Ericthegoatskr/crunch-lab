@@ -1,5 +1,5 @@
 import * as T from 'three';
-import {cocoaTextures,pistachioTextures} from './chocolate-textures.js';
+import {cocoaTextures,macaronTextures,pistachioTextures} from './chocolate-textures.js';
 import {buildSoftSpecimen} from './soft-specimens.js';
 import {floor,gripScale,makeSeeds,peelProgress,poseBlend,random,roundedGeometry,shellCell,specimenNormal} from './wax-geometry.js';
 
@@ -26,19 +26,20 @@ function contactShadow() {
 
 function buildCrunch(body, waxGroup, shadow, id) {
   const butter = id==='butter';
-  const cocoa = butter ? {} : cocoaTextures();
-  const pistachio = butter ? {} : pistachioTextures();
+  const macaron = id==='macaron';
+  const skinMaps = butter ? {} : macaron ? macaronTextures() : cocoaTextures();
+  const fillingMaps = butter||macaron ? {} : pistachioTextures();
   const skin = new T.MeshPhysicalMaterial({
-    ...cocoa, color:butter?0xffe29d:0xffffff, roughness:butter?.33:.86,
+    ...skinMaps, color:butter?0xffe29d:0xffffff, roughness:butter?.33:.86,
     clearcoat:butter?.32:0, bumpScale:.025,
   });
   const shellSkin=skin.clone();
   shellSkin.vertexColors=true;
   const edge = new T.MeshStandardMaterial({
-    color:butter?0xffeabc:0x603019,roughness:.64,bumpMap:cocoa.bumpMap??null,bumpScale:.026,side:T.DoubleSide,vertexColors:true,
+    color:butter?0xffeabc:macaron?0xe48aa2:0x603019,roughness:.64,bumpMap:skinMaps.bumpMap??null,bumpScale:.026,side:T.DoubleSide,vertexColors:true,
   });
   const core = new T.Mesh(roundedGeometry(true,id),new T.MeshPhysicalMaterial({
-    ...pistachio,color:butter?0xf6bb46:0xffffff,roughness:.53,bumpScale:.024,
+    ...fillingMaps,color:butter?0xf6bb46:macaron?0x7faae4:0xffffff,roughness:.53,bumpScale:.024,
     clearcoat:.24,clearcoatRoughness:.48,
   }));
   body.add(core);
@@ -85,7 +86,7 @@ function buildCrunch(body, waxGroup, shadow, id) {
     return {mesh,centers,landing,openingAxis,finish,detach,release,lift,shade};
   });
 
-  return {whole,core,pieces,maps:[...Object.values(cocoa),...Object.values(pistachio)]};
+  return {whole,core,pieces,maps:[...Object.values(skinMaps),...Object.values(fillingMaps)]};
 }
 
 function disposeMeshes(group, sharedGeometry) {
@@ -139,7 +140,7 @@ export function mountWax(host, firstItem) {
     const {width,height}=entry.contentRect;
     if(!width||!height)return;
     camera.aspect=width/height;
-    camera.fov=camera.aspect<1.32 ? 43 : 34;
+    camera.fov=Math.max(camera.aspect<1.32 ? 43 : 34,2*T.MathUtils.radToDeg(Math.atan(.34/camera.aspect)));
     camera.updateProjectionMatrix();
     renderer.setSize(width,height,false);
     schedule();
@@ -281,6 +282,7 @@ export function mountWax(host, firstItem) {
       shadow.material.map.dispose();
       renderer.dispose();
       renderer.domElement.remove();
+      renderer.forceContextLoss();
     },
   };
 }

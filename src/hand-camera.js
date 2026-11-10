@@ -8,7 +8,7 @@ export function loadDetector(){
     return HandLandmarker.createFromOptions(files,{
       baseOptions:{modelAssetPath:model,delegate:'CPU'},
       runningMode:'VIDEO',
-      numHands:1,
+      numHands:2,
       minHandDetectionConfidence:.55,
       minHandPresenceConfidence:.55,
       minTrackingConfidence:.55,
@@ -19,27 +19,30 @@ export function loadDetector(){
 
 const links=[[0,1,2,3,4],[0,5,6,7,8],[5,9,10,11,12],[9,13,14,15,16],[13,17,18,19,20],[0,17]];
 
-export function drawHand(canvas,video,points){
+export function drawHands(canvas,video,hands){
   const w=video.videoWidth, h=video.videoHeight;
   if(!w||!h)return;
   if(canvas.width!==w || canvas.height!==h){canvas.width=w;canvas.height=h;}
   const ctx=canvas.getContext('2d');
   ctx.clearRect(0,0,w,h);
-  if(!points)return;
   ctx.lineCap='round';ctx.lineJoin='round';
   ctx.lineWidth=Math.max(2,w/210);
-  ctx.strokeStyle='#ffd5aa';
-  ctx.fillStyle='#fff0d9';
-  for(const chain of links){
-    ctx.beginPath();
-    chain.forEach((i,j)=>{
-      const p=points[i];
-      if(j)ctx.lineTo(p.x*w,p.y*h);
-      else ctx.moveTo(p.x*w,p.y*h);
-    });
-    ctx.stroke();
-  }
-  for(const p of points){
-    ctx.beginPath();ctx.arc(p.x*w,p.y*h,Math.max(2,w/145),0,Math.PI*2);ctx.fill();
-  }
+  hands.forEach((hand,index)=>{
+    if(!hand)return;
+    const {points}=hand;
+    ctx.strokeStyle=index===0?'#ffd5aa':'#91c8fa';
+    ctx.fillStyle=index===0?'#fff0d9':'#d3ebff';
+    for(const chain of links){
+      ctx.beginPath();
+      chain.forEach((i,j)=>{
+        const p=points[i];
+        if(j)ctx.lineTo(p.x*w,p.y*h);
+        else ctx.moveTo(p.x*w,p.y*h);
+      });
+      ctx.stroke();
+    }
+    for(const p of points){
+      ctx.beginPath();ctx.arc(p.x*w,p.y*h,Math.max(2,w/145),0,Math.PI*2);ctx.fill();
+    }
+  });
 }
