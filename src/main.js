@@ -1,7 +1,8 @@
 import './style.css';
 import {readHand,createGestureGate} from './gesture.js';
 import {loadDetector,drawHand} from './hand-camera.js';
-import {enableAudio,playCrack} from './crack-audio.js';
+import {enableAudio,muteAudio,playCrack,playPop} from './crack-audio.js';
+import {specimens} from './specimens.js';
 import {mountWax} from './wax-scene.js';
 
 const $=id=>document.getElementById(id);
@@ -10,11 +11,13 @@ const video=$('camera-feed'), marks=$('landmarks'), preview=$('preview');
 const state=$('camera-state'), guidance=$('guidance'), sceneHost=$('scene');
 const sound=$('sound'), squeeze=$('squeeze'), reset=$('reset');
 const steps=[...document.querySelectorAll('.steps li')];
-const names=['完整巧克力','初裂','裂開','碎裂'];
+const names=['','初裂','裂開','碎裂'];
+const choices=document.querySelectorAll('input[name="squishy"]');
+let item=specimens[document.querySelector('input[name="squishy"]:checked').value];
 const gate=createGestureGate();
 let stage=0, soundOn=false, live=null, pending=false, frame=0, session=0, visual;
 try{
-  visual=mountWax(sceneHost);
+  visual=mountWax(sceneHost,item);
 }catch(error){
   $('scene-error').hidden=false;
   console.warn('Waxball WebGL initialization:',error);
@@ -29,26 +32,59 @@ function status(label,message){
 function renderStage(value,announce=true){
   stage=value;
   visual?.setStage(value);
-  $('specimen').textContent=names[value];
-  $('stage-count').textContent='0'+value+' / 03';
-  sceneHost.setAttribute('aria-label',names[value]+'，第 '+value+' 階段，共 3 階段');
-  squeeze.disabled=value===3;
-  reset.disabled=value===0;
+  const name=value ? names[value] : item.name;
+  $('specimen').textContent=name;
+  $('stage-count').textContent=item.breakable ? '0'+value+' / 03' : '柔軟回彈';
+  sceneHost.setAttribute('aria-label',item.breakable ? item.name+'，'+(value?name+'，第 '+value+' 階段':'完整') : item.name+'，柔軟回彈');
+  squeeze.disabled=item.breakable && value===3;
+  reset.disabled=!value;
   steps.forEach((item,i)=>{
     item.dataset.done=String(i+1<value);
     if(i+1===value)item.setAttribute('aria-current','step');
     else item.removeAttribute('aria-current');
   });
-  if(announce)$('announcement').textContent=value?'第 '+value+' 階段：'+names[value]:'已重置巧克力。';
+  if(announce)$('announcement').textContent=value?'第 '+value+' 階段：'+name:'已重置'+item.name+'。';
+}
+function showItem(){
+  $('stage').dataset.item=item.id;
+  $('plate').textContent=item.plate;
+  $('figure').textContent='FIG. '+item.figure;
+  $('steps').hidden=!item.breakable;
+  $('feel').hidden=item.breakable;
+  $('feel').textContent=item.feel||'';
+  $('footer-gesture').textContent=item.breakable?'握拳 → 張手 → 再握拳':'握拳壓扁 · 張手回彈';
+  reset.hidden=!item.breakable;
+  if(item.breakable)steps.forEach((step,i)=>{step.querySelector('small').textContent=item.steps[i];});
+  renderStage(0,false);
+}
+for(const choice of choices){
+  choice.addEventListener('change',()=>{
+    item=specimens[choice.value];
+    gate.reset();
+    visual?.setItem(item);
+    showItem();
+    if(live&&!pending)status('追蹤中',readyHint());
+    $('announcement').textContent='已換成'+item.name+'。';
+  });
+}
+function readyHint(){
+  return item.breakable ? '先張開手掌，再握拳。' : '握拳捏扁，張手讓它回彈。';
 }
 function advance(){
   if(stage>=3)return;
   renderStage(stage+1);
-  if(soundOn)playCrack(stage);
+  if(soundOn)playCrack(stage,item.id);
   if(stage===3 && live)status('已完成','還能握緊或鬆手改變內芯形狀，按「重置」可再玩。');
 }
-renderStage(0,false);
-squeeze.addEventListener('click',advance);
+function manualSqueeze(){
+  if(item.breakable)advance();
+  else{
+    visual?.pulse();
+    if(soundOn)playPop(item.id);
+  }
+}
+showItem();
+squeeze.addEventListener('click',manualSqueeze);
 reset.addEventListener('click',()=>{
   gate.reset();
   visual?.setGrip(0);
@@ -60,11 +96,12 @@ reset.addEventListener('click',()=>{
 window.addEventListener('keydown',event=>{
   if(event.code!=='Space'||event.repeat||event.altKey||event.ctrlKey||event.metaKey)return;
   if(event.target instanceof Element && event.target.closest('button,a,input,textarea,select,[contenteditable]'))return;
-  if(!squeeze.disabled){event.preventDefault();advance();}
+  if(!squeeze.disabled){event.preventDefault();manualSqueeze();}
 });
 sound.addEventListener('click',async ()=>{
   if(soundOn)soundOn=false;
   else try{soundOn=await enableAudio();}catch{soundOn=false;}
+  muteAudio(!soundOn);
   sound.setAttribute('aria-pressed',String(soundOn));
   sound.querySelector('use').setAttribute('href',soundOn?'#sound-icon':'#muted-icon');
 });
@@ -106,12 +143,15 @@ function trackHand(detector,id){
           visual?.setGrip(grip);
         }
         const reading=gate.sample(pose,now);
-        if(reading.trigger)advance();
+        if(reading.trigger){
+          if(item.breakable)advance();
+          else if(soundOn)playPop(item.id);
+        }
         if(stage!==3){
           if(!points && now-lastSeen>300)status('找不到手','讓一隻手完整入鏡，掌心朝向相機。');
-          else if(reading.stable==='open')status('已張手','握拳，推進一個破裂階段。');
-          else if(reading.stable==='fist')status('已握拳','握緊會壓得更扁。張手後，再握一次。');
-          else if(points && !reading.armed)status('追蹤中','先張開手掌，再握拳。');
+          else if(reading.stable==='open')status('已張手',item.breakable?'握拳，推進一個破裂階段。':readyHint());
+          else if(reading.stable==='fist')status('已握拳',item.breakable?'握緊會壓得更扁。張手後，再握一次。':'握緊會壓得更扁，鬆手就會回彈。');
+          else if(points && !reading.armed)status('追蹤中',readyHint());
         }
       }catch(error){
         console.warn('Waxball camera frame:',error);
@@ -152,7 +192,7 @@ camera.addEventListener('click',async ()=>{
     const detector=await loadDetector();
     if(id!==session)return;
     pending=false;
-    status('追蹤中','先張開手掌，再握拳。');
+    status('追蹤中',readyHint());
     trackHand(detector,id);
   }catch(error){
     if(id!==session)return;

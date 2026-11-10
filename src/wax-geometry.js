@@ -25,6 +25,27 @@ function waxRadius(n) {
     + .008*Math.sin(16*n.x+7*n.z)*Math.sin(13*n.y-5*n.z);
 }
 
+const butterAxes = new T.Vector3(1.42,.65,.72);
+
+function specimenPoint(direction, size, shape) {
+  if(shape!=='butter')return direction.clone().multiplyScalar(size);
+  const {x,y,z}=direction;
+  const edge=(Math.abs(x/butterAxes.x)**8+Math.abs(y/butterAxes.y)**8+Math.abs(z/butterAxes.z)**8)**(-1/8);
+  const point=direction.clone().multiplyScalar(edge*size/radius);
+  point.y+=floor+butterAxes.y+.02;
+  return point;
+}
+
+export function specimenNormal(direction, shape) {
+  if(shape!=='butter')return direction.clone();
+  const gradient=(value,axis)=>Math.sign(value)*(Math.abs(value)/axis)**7/axis;
+  return new T.Vector3(
+    gradient(direction.x,butterAxes.x),
+    gradient(direction.y,butterAxes.y),
+    gradient(direction.z,butterAxes.z),
+  ).normalize();
+}
+
 // The shell and gel share these baked shapes, including the wider belly and off-centre press.
 function press(p, stage) {
   const {squash, bulge, skew} = poses[stage];
@@ -63,7 +84,7 @@ function setMorphs(geo, positions, normals) {
   return geo;
 }
 
-export function roundedGeometry(core = false) {
+export function roundedGeometry(core = false, shape = 'chocolate') {
   const geo = new T.SphereGeometry(1,96,64);
   const dir = geo.attributes.position;
   const positions = [];
@@ -74,7 +95,7 @@ export function roundedGeometry(core = false) {
     for(let i=0;i<dir.count;i++){
       v.fromBufferAttribute(dir,i).normalize();
       const r=waxRadius(v)-(core ? .050+.009*Math.sin(5*v.x+4*v.y-3*v.z) : 0);
-      points.push(...press(v.clone().multiplyScalar(r),stage));
+      points.push(...press(specimenPoint(v,r,shape),stage));
     }
     positions.push(points);
     geo.setAttribute('position',new T.Float32BufferAttribute(points,3));
@@ -117,9 +138,9 @@ function cellCorners(seed,seeds) {
   return corners.map(([x,y])=>seed.clone().addScaledVector(u,x).addScaledVector(v,y).normalize());
 }
 
-export function shellCell(seed,seeds) {
+export function shellCell(seed,seeds,shape = 'chocolate') {
   const corners=cellCorners(seed,seeds);
-  const centers=poses.map((_,i)=>press(seed.clone().multiplyScalar(waxRadius(seed)),i));
+  const centers=poses.map((_,i)=>press(specimenPoint(seed,waxRadius(seed),shape),i));
   const positions=poses.map(()=>[]), normals=poses.map(()=>[]), colors=[], uv=[];
   const baseGap=[0,.005,.069,.078], stressGap=[0,.105,.110,.111];
   function surface(direction, rim, inner = false){
@@ -133,8 +154,9 @@ export function shellCell(seed,seeds) {
       const gap=baseGap[stage]+stressGap[stage]*cuts;
       const d=n.clone().lerp(seed,gap*rim).normalize();
       const {squash,bulge} = poses[stage];
-      points.push(press(d.clone().multiplyScalar(r),stage).sub(centers[stage]));
-      dirs.push(new T.Vector3(d.x/(1+bulge),d.y/squash,d.z/(1+bulge*1.32)).normalize());
+      points.push(press(specimenPoint(d,r,shape),stage).sub(centers[stage]));
+      const normal=specimenNormal(d,shape);
+      dirs.push(normal.divide(new T.Vector3(1+bulge,squash,1+bulge*1.32)).normalize());
     }
     return {
       points,dirs,n,
@@ -210,9 +232,9 @@ export function poseBlend(mesh, progress){
 
 // This reversible scale is applied on top of the baked fracture pose, around the floor.
 // Flying flakes lose the live deformation as they separate from the core.
-export function gripScale(grip, attachment=1) {
+export function gripScale(grip, attachment=1, compression=.41) {
   const amount=T.MathUtils.clamp(grip,0,1)*attachment;
-  return {x:1+.16*amount,y:1-.41*amount,z:1+.19*amount};
+  return {x:1+.16*amount,y:1-compression*amount,z:1+.19*amount};
 }
 
 // A flake stays anchored until its release threshold, then peels before it travels.

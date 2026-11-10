@@ -90,3 +90,30 @@ footer{display:flex;gap:10px;justify-content:space-between;padding:15px 0 22px;c
 }
 @media(max-width:350px){.steps li{align-items:flex-start}.steps small{line-height:1.4}.controls{column-gap:8px}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{transition-duration:0s!important}}
+
+.picker{min-inline-size:0;margin:0 0 16px;padding:0;border:0}
+.picker legend{padding:0 0 7px;font-size:13px;font-weight:750}
+.specimen-options{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.specimen-option{position:relative;display:block;min-width:0;cursor:pointer}
+.specimen-choice{display:flex;align-items:center;gap:8px;min-height:53px;padding:5px 11px;border:1px solid var(--rule);border-radius:9px;background:#f7f3ea;transition:background-color 150ms var(--ease),border-color 150ms var(--ease)}
+.specimen-choice svg{display:block;width:39px;height:29px;flex:none}
+.specimen-choice strong,.specimen-choice small{display:block}
+.specimen-choice strong{font-size:13px;line-height:1.3}
+.specimen-choice small{margin-top:2px;font-size:11px;color:var(--muted)}
+.specimen-option input:checked+.specimen-choice{border-color:#a24930;background:#f2e0d1}
+.specimen-option input:focus-visible+.specimen-choice{outline:2px solid var(--red);outline-offset:3px}
+.stage[data-item="butter"]{background:radial-gradient(ellipse at 49% 47%,#4c4029 0%,#31291f 49%,#211a15 85%)}
+.stage[data-item="egg"]{background:radial-gradient(ellipse at 49% 47%,#413e2d 0%,#29281f 49%,#1d1d16 85%)}
+.stage[data-item="doughnut"]{background:radial-gradient(ellipse at 49% 47%,#493138 0%,#32232b 49%,#211820 85%)}
+.secondary:has(#reset[hidden]){grid-template-columns:1fr}
+.feel{margin:20px 0 0;padding:15px 0;border-block:1px solid var(--rule);color:var(--muted);font-size:13px;line-height:1.5}
+@media(hover:hover) and (pointer:fine){
+  .specimen-option:hover .specimen-choice{border-color:#ad745c}
+}
+@media(max-width:690px){
+  .picker{margin-bottom:12px}
+  .specimen-options{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+  .specimen-choice{min-height:44px;padding:3px 7px}
+  .specimen-choice svg{width:34px}
+  .feel{margin-top:13px}
+}

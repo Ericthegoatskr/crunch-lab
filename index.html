@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f1ede3">
-  <meta name="description" content="捏開一顆 3D 杜拜巧克力，露出裡面的開心果酥絲內餡。">
+  <meta name="description" content="選一款 3D 捏捏，用手勢捏碎脆皮，或感受柔軟的回彈。">
   <link rel="icon" href="./public-mark.svg" type="image/svg+xml">
   <title>脆皮捏捏模擬器</title>
   <script type="module" src="./src/main.js"></script>
@@ -25,15 +25,36 @@
     </header>
     <section class="intro" aria-labelledby="title">
       <h1 id="title">脆皮捏捏模擬器<span>.</span></h1>
-      <p>握得越緊，內芯就壓得越扁。<br class="narrow-break">張開手後，裂痕會留下來。</p>
+      <p>挑一款想捏的。<br class="narrow-break">用手勢感受脆裂或回彈。</p>
     </section>
+    <fieldset class="picker">
+      <legend>選擇捏捏</legend>
+      <div class="specimen-options">
+        <label class="specimen-option">
+          <input class="sr-only" type="radio" name="squishy" value="chocolate" checked>
+          <span class="specimen-choice"><svg aria-hidden="true" viewBox="0 0 44 32"><path fill="#753e2c" d="M7 16C7 8 13 3 22 3s15 5 15 13-7 13-15 13S7 24 7 16Z"/><path fill="#99a154" d="M22 13c5-3 10-2 15 0v3c0 8-7 13-15 13-3-5-4-11 0-16Z"/><path d="m24 18 5-2m-4 7 6-4m-3 5 5-3" stroke="#edc979" stroke-width="1.5" stroke-linecap="round"/></svg><span><strong>杜拜巧克力</strong><small>脆皮</small></span></span>
+        </label>
+        <label class="specimen-option">
+          <input class="sr-only" type="radio" name="squishy" value="butter">
+          <span class="specimen-choice"><svg aria-hidden="true" viewBox="0 0 44 32"><path fill="#dca654" d="M5 12 28 7l11 6v10l-23 5-11-6Z"/><path fill="#f7d686" d="M5 12 28 7l11 6-23 6Z"/><path fill="#ebbc62" d="m16 19 23-6v10l-23 5Z"/><path fill="none" stroke="#fff4cf" stroke-width="1.5" d="m21 9 4 3-2 5 4 3-1 5"/></svg><span><strong>奶油塊</strong><small>脆皮</small></span></span>
+        </label>
+        <label class="specimen-option">
+          <input class="sr-only" type="radio" name="squishy" value="egg">
+          <span class="specimen-choice"><svg aria-hidden="true" viewBox="0 0 44 32"><path fill="#fff8e7" stroke="#d9c8aa" d="M7 11c3-3 6-1 9-5s9-4 12 0 9 2 11 7-1 9-6 11-5 4-10 4-6-3-12-3S2 16 7 11Z"/><circle cx="22" cy="15" r="7" fill="#f1a126"/><path d="M19 13q1-2 4-2" stroke="#ffdb87" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg><span><strong>荷包蛋</strong><small>回彈</small></span></span>
+        </label>
+        <label class="specimen-option">
+          <input class="sr-only" type="radio" name="squishy" value="doughnut">
+          <span class="specimen-choice"><svg aria-hidden="true" viewBox="0 0 44 32"><ellipse cx="22" cy="17" rx="13" ry="10" fill="none" stroke="#ce8e58" stroke-width="7"/><ellipse cx="22" cy="14.5" rx="13" ry="9.5" fill="none" stroke="#eea4b4" stroke-width="7"/><path d="m12 11 3-2m11-3 3 2m4 11 3-2" stroke="#ffe4df" stroke-width="1.5" stroke-linecap="round"/></svg><span><strong>甜甜圈</strong><small>回彈</small></span></span>
+        </label>
+      </div>
+    </fieldset>
     <section class="bench" aria-label="脆皮捏捏實驗台">
-      <figure class="stage">
+      <figure class="stage" id="stage" data-item="chocolate">
         <div id="scene" role="img" aria-label="完整的 3D 杜拜巧克力"></div>
-        <div class="stage-top"><span><i></i> DUBAI CHOCOLATE</span><span>FIG. 01</span></div>
+        <div class="stage-top"><span><i></i><span id="plate">DUBAI CHOCOLATE</span></span><span id="figure">FIG. 01</span></div>
         <div class="reticle" aria-hidden="true"></div>
         <figcaption><span id="specimen">完整巧克力</span><span id="stage-count">00 / 03</span></figcaption>
-        <div class="scene-error" id="scene-error" hidden>無法顯示 3D 巧克力。請使用支援 WebGL 2 的瀏覽器，並開啟硬體加速。</div>
+        <div class="scene-error" id="scene-error" hidden>無法顯示 3D 捏捏。請使用支援 WebGL 2 的瀏覽器，並開啟硬體加速。</div>
       </figure>
       <aside class="controls" aria-label="互動控制">
         <div class="control-head">
@@ -57,13 +78,14 @@
         </div>
       </aside>
     </section>
-    <ol class="steps" aria-label="破裂階段">
+    <ol class="steps" id="steps" aria-label="破裂階段">
       <li><span class="step-index">01</span><span><strong>初裂</strong><small>受力處出現細裂</small></span></li>
       <li><span class="step-index">02</span><span><strong>裂開</strong><small>露出開心果酥絲內餡</small></span></li>
       <li><span class="step-index">03</span><span><strong>碎裂</strong><small>巧克力殼片散開</small></span></li>
     </ol>
+    <p class="feel" id="feel" hidden></p>
     <p class="sr-only" id="announcement" aria-live="polite"></p>
-    <footer><span>相機畫面只在瀏覽器內處理。</span><span>握拳 → 張手 → 再握拳</span></footer>
+    <footer><span>相機畫面只在瀏覽器內處理。</span><span id="footer-gesture">握拳 → 張手 → 再握拳</span></footer>
   </main>
 </body>
 </html>
