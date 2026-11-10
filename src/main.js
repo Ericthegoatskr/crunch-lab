@@ -11,8 +11,7 @@ const camera=$('camera-toggle'), cameraLabel=camera.querySelector('span');
 const video=$('camera-feed'), marks=$('landmarks'), preview=$('preview');
 const state=$('camera-state'), guidance=$('guidance');
 const sound=$('sound'), squeeze=$('squeeze'), reset=$('reset');
-const steps=[...document.querySelectorAll('.steps li')];
-const names=['','初裂','裂開','碎裂'];
+const names=['完整','初裂','裂開','碎裂'];
 const choices=[...document.querySelectorAll('input[name="squishy"]')];
 const pair=$('stage-pair');
 const first=pair.firstElementChild;
@@ -59,9 +58,9 @@ function canSqueeze(slot){
 }
 function renderSlot(slot){
   const {item,stage,root}=slot;
-  const name=stage ? names[stage] : item.name;
-  root.querySelector('.specimen').textContent=quantity===2 ? item.name : name;
-  root.querySelector('.stage-count').textContent=item.breakable ? '0'+stage+' / 03' : '柔軟回彈';
+  const progress=item.breakable ? `${names[stage]} · ${stage}/3` : '鬆手回彈';
+  root.querySelector('.specimen').textContent=item.name;
+  root.querySelector('.stage-count').textContent=progress;
   root.querySelector('.plate').textContent=item.plate;
   const sideLabel=root.querySelector('.side-label');
   sideLabel.hidden=quantity===1;
@@ -70,7 +69,7 @@ function renderSlot(slot){
   slot.button.hidden=quantity===1;
   slot.button.disabled=!canSqueeze(slot);
   slot.button.textContent='手動捏'+side(slot);
-  slot.scene.setAttribute('aria-label',(quantity===2?side(slot)+'，':'')+item.name+'，'+(item.breakable?(stage?name+'，第 '+stage+' 階段':'完整'):'柔軟回彈'));
+  slot.scene.setAttribute('aria-label',(quantity===2?side(slot)+'，':'')+item.name+'，'+progress);
 }
 
 function renderControls(){
@@ -80,24 +79,13 @@ function renderControls(){
   reset.hidden=!active.some(slot=>slot.item.breakable);
   reset.disabled=!active.some(slot=>slot.stage);
   reset.lastChild.textContent=quantity===2?'重置兩顆':'重置';
-  const {item,stage}=slots[pickerTarget];
-  $('steps').hidden=!item.breakable;
-  $('feel').hidden=item.breakable;
-  $('feel').textContent=item.feel||'';
-  $('steps').setAttribute('aria-label',quantity===2?side(slots[pickerTarget])+'破裂階段':'破裂階段');
+  const {item}=slots[0];
   $('footer-gesture').textContent=quantity===2?'雙手各控制一顆':item.breakable?'握拳 → 張手 → 再握拳':'握拳壓扁 · 張手回彈';
-  if(item.breakable)steps.forEach((step,i)=>{
-    step.querySelector('small').textContent=item.steps[i];
-    step.dataset.done=String(i+1<stage);
-    if(i+1===stage)step.setAttribute('aria-current','step');
-    else step.removeAttribute('aria-current');
-  });
 }
 function selectPicker(index){
   pickerTarget=index;
   choices.find(choice=>choice.value===slots[index].item.id).checked=true;
   document.querySelector('input[name="picker-target"][value="'+index+'"]').checked=true;
-  renderControls();
 }
 function resetTracking(){
   router.reset();
@@ -124,6 +112,7 @@ function setQuantity(value){
   resetTracking();
   selectPicker(0);
   activeSlots().forEach(renderSlot);
+  renderControls();
   if(live&&!pending)status('追蹤中',readyHint());
   else if(!live&&!pending&&state.textContent==='未開啟')status('未開啟','開啟相機後，'+readyHint());
 }
