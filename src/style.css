@@ -22,7 +22,7 @@ h1 span{color:var(--red);margin-inline-start:.07em}
 .intro p{font-size:14px;line-height:1.8;color:var(--muted)}
 .narrow-break{display:none}
 .bench{display:grid;grid-template-columns:minmax(0,2.45fr) minmax(280px,1fr);gap:24px}
-.stage{position:relative;height:clamp(403px,44vw,550px);overflow:hidden;border-radius:14px;color:#f6e4cc;isolation:isolate;background:radial-gradient(ellipse at 49% 47%,#503021 0%,#33221c 40%,#211813 78%)}
+.stage{position:relative;height:clamp(403px,44vw,550px);overflow:hidden;border-radius:14px;color:#f6e4cc;isolation:isolate;background:radial-gradient(ellipse at 49% 47%,#41432a 0%,#2e2d1e 42%,#201b15 80%)}
 .stage:before{content:"";position:absolute;inset:0;pointer-events:none;opacity:.25;background-image:radial-gradient(#cf9a7040 .6px,transparent .6px);background-size:5px 5px}
 #scene{position:absolute;inset:0;touch-action:pan-y}
 #scene canvas{display:block;width:100%;height:100%}

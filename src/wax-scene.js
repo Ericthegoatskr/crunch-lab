@@ -1,25 +1,9 @@
 import * as T from 'three';
+import {cocoaTextures,pistachioTextures} from './chocolate-textures.js';
 import {floor,gripScale,makeSeeds,peelProgress,poseBlend,random,roundedGeometry,shellCell} from './wax-geometry.js';
 
 const {clamp,lerp,smoothstep} = T.MathUtils;
 const easeOut = x => 1-(1-x)**3;
-
-function grain() {
-  const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = 256;
-  const ctx = canvas.getContext('2d');
-  const pixels = ctx.createImageData(256, 256);
-  const rand = random(318);
-  for (let i = 0; i < pixels.data.length; i += 4) {
-    const g = 142 + (rand() - .5) * 53 + Math.cos(Math.floor(i / 1024) * .39) * 9;
-    pixels.data.set([g, g, g, 255], i);
-  }
-  ctx.putImageData(pixels, 0, 0);
-  const texture = new T.CanvasTexture(canvas);
-  texture.wrapS = texture.wrapT = T.RepeatWrapping;
-  texture.anisotropy = 4;
-  return texture;
-}
 
 function contactShadow() {
   const map = document.createElement('canvas');
@@ -64,19 +48,19 @@ export function mountWax(host) {
   const body = new T.Group();
   waxGroup.add(body);
 
-  const bumpMap = grain();
+  const cocoa = cocoaTextures();
+  const pistachio = pistachioTextures();
   const skin = new T.MeshPhysicalMaterial({
-    color:0xca582a,roughness:.43,clearcoat:.29,clearcoatRoughness:.31,
-    bumpMap,bumpScale:.021,
+    ...cocoa,roughness:.86,bumpScale:.025,
   });
   const shellSkin=skin.clone();
   shellSkin.vertexColors=true;
   const edge = new T.MeshStandardMaterial({
-    color:0xb96d40,roughness:.71,bumpMap,bumpScale:.037,side:T.DoubleSide,vertexColors:true,
+    color:0x603019,roughness:.64,bumpMap:cocoa.bumpMap,bumpScale:.026,side:T.DoubleSide,vertexColors:true,
   });
   const core = new T.Mesh(roundedGeometry(true),new T.MeshPhysicalMaterial({
-    color:0xea8d40,roughness:.20,clearcoat:.88,clearcoatRoughness:.20,
-    sheen:.42,sheenColor:0xf5ba62,sheenRoughness:.5,
+    ...pistachio,roughness:.53,bumpScale:.024,
+    clearcoat:.24,clearcoatRoughness:.48,
   }));
   body.add(core);
   const whole = new T.Mesh(roundedGeometry(),skin);
@@ -241,7 +225,7 @@ export function mountWax(host) {
       });
       geometries.forEach(g=>g.dispose());
       materials.forEach(m=>m.dispose());
-      bumpMap.dispose();
+      for(const map of [...Object.values(cocoa),...Object.values(pistachio)])map.dispose();
       shadow.material.map.dispose();
       renderer.dispose();
     },

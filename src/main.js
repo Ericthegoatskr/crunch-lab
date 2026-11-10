@@ -10,7 +10,7 @@ const video=$('camera-feed'), marks=$('landmarks'), preview=$('preview');
 const state=$('camera-state'), guidance=$('guidance'), sceneHost=$('scene');
 const sound=$('sound'), squeeze=$('squeeze'), reset=$('reset');
 const steps=[...document.querySelectorAll('.steps li')];
-const names=['完整蠟球','初裂','裂開','碎裂'];
+const names=['完整巧克力','初裂','裂開','碎裂'];
 const gate=createGestureGate();
 let stage=0, soundOn=false, live=null, pending=false, frame=0, session=0, visual;
 try{
@@ -39,7 +39,7 @@ function renderStage(value,announce=true){
     if(i+1===value)item.setAttribute('aria-current','step');
     else item.removeAttribute('aria-current');
   });
-  if(announce)$('announcement').textContent=value?'第 '+value+' 階段：'+names[value]:'已重置蠟球。';
+  if(announce)$('announcement').textContent=value?'第 '+value+' 階段：'+names[value]:'已重置巧克力。';
 }
 function advance(){
   if(stage>=3)return;
