@@ -1,5 +1,6 @@
 import * as T from 'three';
-import {cocoaTextures,macaronTextures,pistachioTextures} from './chocolate-textures.js';
+import {cocoaTextures,creamPuffTextures,macaronTextures,pistachioTextures} from './chocolate-textures.js';
+import {buildCustard,buildPuffCrumbs} from './cream-puff.js';
 import {buildSoftSpecimen} from './soft-specimens.js';
 import {floor,gripScale,makeSeeds,peelProgress,poseBlend,random,roundedGeometry,shellCell,specimenNormal} from './wax-geometry.js';
 
@@ -27,20 +28,21 @@ function contactShadow() {
 function buildCrunch(body, waxGroup, shadow, id) {
   const butter = id==='butter';
   const macaron = id==='macaron';
-  const skinMaps = butter ? {} : macaron ? macaronTextures() : cocoaTextures();
-  const fillingMaps = butter||macaron ? {} : pistachioTextures();
+  const puff = id==='creamPuff';
+  const skinMaps = butter ? {} : macaron ? macaronTextures() : puff ? creamPuffTextures() : cocoaTextures();
+  const fillingMaps = id==='chocolate' ? pistachioTextures() : {};
   const skin = new T.MeshPhysicalMaterial({
     ...skinMaps, color:butter?0xffe29d:0xffffff, roughness:butter?.33:.86,
-    clearcoat:butter?.32:0, bumpScale:.025,
+    clearcoat:butter?.32:0, bumpScale:puff?.067:.025,
   });
   const shellSkin=skin.clone();
   shellSkin.vertexColors=true;
   const edge = new T.MeshStandardMaterial({
-    color:butter?0xffeabc:macaron?0xe48aa2:0x603019,roughness:.64,bumpMap:skinMaps.bumpMap??null,bumpScale:.026,side:T.DoubleSide,vertexColors:true,
+    color:butter?0xffeabc:macaron?0xe48aa2:puff?0xd99a52:0x603019,roughness:.64,bumpMap:skinMaps.bumpMap??null,bumpScale:.026,side:T.DoubleSide,vertexColors:true,
   });
   const core = new T.Mesh(roundedGeometry(true,id),new T.MeshPhysicalMaterial({
-    ...fillingMaps,color:butter?0xf6bb46:macaron?0x7faae4:0xffffff,roughness:.53,bumpScale:.024,
-    clearcoat:.24,clearcoatRoughness:.48,
+    ...fillingMaps,color:butter?0xf6bb46:macaron?0x7faae4:puff?0xf4cd75:0xffffff,roughness:puff?.34:.53,bumpScale:.024,
+    clearcoat:puff?.39:.24,clearcoatRoughness:.48,
   }));
   body.add(core);
   const whole = new T.Mesh(roundedGeometry(false,id),skin);
@@ -55,7 +57,7 @@ function buildCrunch(body, waxGroup, shadow, id) {
     mesh.frustumCulled=false;
     waxGroup.add(mesh);
 
-    const detach = dir.y < .67 || i%3===0;
+    const detach = puff || dir.y < .67 || i%3===0;
     const angle=Math.atan2(dir.z,dir.x)+(rand()-.5)*.71;
     const travel=1.34+rand()*.82+(dir.y>.18?.09:0);
     const landing=new T.Vector3(Math.cos(angle)*travel,0,Math.sin(angle)*travel*.79);
@@ -86,12 +88,17 @@ function buildCrunch(body, waxGroup, shadow, id) {
     return {mesh,centers,landing,openingAxis,finish,detach,release,lift,shade};
   });
 
-  return {whole,core,pieces,maps:[...Object.values(skinMaps),...Object.values(fillingMaps)]};
+  return {
+    whole,core,pieces,maps:[...Object.values(skinMaps),...Object.values(fillingMaps)],
+    updateCustard:puff ? buildCustard(body,seeds,core.material) : null,
+    updateCrumbs:puff ? buildPuffCrumbs(waxGroup,pieces) : null,
+  };
 }
 
 function disposeMeshes(group, sharedGeometry) {
   const geometries=new Set(), materials=new Set();
   group.traverse(obj=>{
+    if(obj.isInstancedMesh)obj.dispose();
     if(obj.geometry && obj.geometry!==sharedGeometry)geometries.add(obj.geometry);
     for(const material of [].concat(obj.material||[]))materials.add(material);
   });
@@ -179,7 +186,7 @@ export function mountWax(host, firstItem) {
     current=start=target=grip=gripTarget=pulseUntil=0;
     lastProgress=lastGrip=-1;
     baseSpin=spin=item.id==='butter' ? -.46 : .20;
-    camera.lookAt(0,item.id==='chocolate' ? -.23 : -.69,0);
+    camera.lookAt(0,item.id==='chocolate' ? -.23 : item.id==='creamPuff' ? -.53 : -.69,0);
     rim.color.setHex(item.id==='chocolate' ? 0xffa057 : 0xffe7c6);
     schedule();
   }
@@ -218,7 +225,9 @@ export function mountWax(host, firstItem) {
         core.visible=!intact;
         if(newPose)poseBlend(core,current);
       }
+      model.updateCustard?.(current,grip);
       const scale=gripScale(grip,1,activeItem.compression);
+      if(newPose)model.updateCrumbs?.(current,scale);
       body.scale.set(scale.x,scale.y,scale.z);
       body.position.y=floor*(1-scale.y);
       shadow.scale.set((3.05+.53*current)*scale.x,(2.61+.39*current)*scale.z,1);

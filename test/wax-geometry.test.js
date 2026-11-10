@@ -3,12 +3,12 @@ import assert from 'node:assert/strict';
 import {Mesh, Vector3} from 'three';
 import {gripScale, makeSeeds, peelProgress, poseBlend, random, shellCell} from '../src/wax-geometry.js';
 
-test('the unbroken cell rims fit together, and all baked shell poses face outward',()=>{
+function checkShell(shape){
   const seeds=makeSeeds(random(1736));
   const edges=[];
   const a=new Vector3(),b=new Vector3(),c=new Vector3(),n=new Vector3();
   for(const seed of seeds){
-    const {geo,centers}=shellCell(seed,seeds);
+    const {geo,centers}=shellCell(seed,seeds,shape);
     const {position,normal}=geo.attributes;
     const {start,count}=geo.groups[1];
     // The first two vertices in each wall strip are the ends of a top rim segment.
@@ -39,7 +39,10 @@ test('the unbroken cell rims fit together, and all baked shell poses face outwar
     assert.notEqual(other,-1,'each seam must have a matching rim in the neighboring cell');
     pairs.add(other);
   }
-});
+}
+
+test('the chocolate shell rims fit together and all poses face outward',()=>checkShell('chocolate'));
+test('the cream puff shell rims fit together and all poses face outward',()=>checkShell('creamPuff'));
 
 test('attachment survives the first two poses and a staggered peel settles fully on the third',()=>{
   for(const delay of [.075,.2,.37]){

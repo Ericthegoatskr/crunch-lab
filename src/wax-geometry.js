@@ -27,8 +27,21 @@ function waxRadius(n) {
 
 const butterAxes = new T.Vector3(1.42,.65,.72);
 const macaronAxes = new T.Vector3(1.25,.60,1.10);
+const puffAxes = new T.Vector3(1.24,.825,1.13);
 
 function specimenPoint(direction, size, shape) {
+  if(shape==='creamPuff'){
+    const {x,y,z}=direction;
+    const angle=Math.atan2(z,x);
+    const lobe=1+(1-y*y)*(.048*Math.cos(5*angle+.7*y)+.019*Math.cos(9*angle-3*y));
+    const dome=y+.05*(1-y*y)*Math.sin(5*x+3*z);
+    const scale=size/radius;
+    return new T.Vector3(
+      x*puffAxes.x*scale*lobe,
+      floor+.74+(.825*dome+.085*dome*dome)*scale,
+      z*puffAxes.z*scale*lobe,
+    );
+  }
   const axes=shape==='butter' ? butterAxes : shape==='macaron' ? macaronAxes : null;
   if(!axes)return direction.clone().multiplyScalar(size);
   const exponent=shape==='butter' ? 8 : 4;
@@ -48,6 +61,9 @@ function specimenPoint(direction, size, shape) {
 }
 
 export function specimenNormal(direction, shape) {
+  if(shape==='creamPuff'){
+    return new T.Vector3(direction.x/puffAxes.x,direction.y/(puffAxes.y+.17*direction.y),direction.z/puffAxes.z).normalize();
+  }
   const axes=shape==='butter' ? butterAxes : shape==='macaron' ? macaronAxes : null;
   if(!axes)return direction.clone();
   if(shape==='macaron'){
@@ -73,7 +89,15 @@ function press(p, stage) {
   return new T.Vector3(x,y,z);
 }
 
-function strain(n) {
+function strain(n, shape) {
+  if(shape==='creamPuff'){
+    const crown=Math.abs(n.y-(.57-.30*n.x+.11*Math.sin(6*n.x)));
+    const branch=Math.abs(n.x-(.21+.34*n.y));
+    return Math.max(
+      (1-smoothstep(crown,.015,.34))*smoothstep(n.z,.05,.7),
+      .63*(1-smoothstep(branch,.02,.24))*smoothstep(n.y,.25,.86),
+    );
+  }
   const line = Math.abs(n.y-(.27-.38*n.x+.115*Math.sin(6*n.x)));
   return (1-smoothstep(line,.01,.49))*smoothstep(n.z,.21,.87);
 }
@@ -159,12 +183,14 @@ export function shellCell(seed,seeds,shape = 'chocolate') {
   const corners=cellCorners(seed,seeds);
   const centers=poses.map((_,i)=>press(specimenPoint(seed,waxRadius(seed),shape),i));
   const positions=poses.map(()=>[]), normals=poses.map(()=>[]), colors=[], uv=[];
-  const baseGap=[0,.005,.069,.078], stressGap=[0,.105,.110,.111];
+  const puff=shape==='creamPuff';
+  const baseGap=puff ? [0,.002,.110,.110] : [0,.005,.069,.078];
+  const stressGap=puff ? [0,.079,.175,.179] : [0,.105,.110,.111];
   function surface(direction, rim, inner = false){
     const n=roughen(direction);
-    const thickness=.039+.012*Math.sin(21*n.x+11*n.y)*Math.sin(19*n.z-9*n.y)
+    const thickness=(puff ? .062 : .039)+.012*Math.sin(21*n.x+11*n.y)*Math.sin(19*n.z-9*n.y)
       +.006*Math.sin(37*n.z+14*n.x);
-    const cuts = strain(n);
+    const cuts = strain(n,shape);
     const r = waxRadius(n)-(inner ? thickness : 0);
     const points=[], dirs=[];
     for(let stage=0;stage<poses.length;stage++){
@@ -236,6 +262,36 @@ export function shellCell(seed,seeds,shape = 'chocolate') {
   geo.addGroup(0,outer,0);
   geo.addGroup(outer,positions[0].length/3-outer,1);
   return {geo,centers};
+}
+
+// Choose visible seams on the same Voronoi shell so the filling emerges through real gaps.
+export function puffSeams(seeds) {
+  const edges=seeds.flatMap(seed=>{
+    const corners=cellCorners(seed,seeds);
+    return corners.map((a,i)=>{
+      const b=corners[(i+1)%corners.length];
+      return {a,b,mid:a.clone().add(b).normalize()};
+    });
+  });
+  const outlets=[
+    [-.5,.52,.69], [.3,.59,.76], [-.02,.18,.98],
+    [-.78,.32,.60], [.76,.27,.60], [.09,.94,.31],
+  ];
+  return outlets.map(values=>{
+    const target=new T.Vector3(...values).normalize();
+    const {a,b,mid}=edges.reduce((best,edge)=>edge.mid.dot(target)>best.mid.dot(target)?edge:best);
+    const n=roughen(mid);
+    const position=direction=>specimenPoint(direction,waxRadius(direction)-.042,'creamPuff');
+    return poses.map(({squash,bulge},stage)=>{
+      const point=press(position(n),stage);
+      const tangent=press(position(roughen(b)),stage).sub(press(position(roughen(a)),stage));
+      const normal=specimenNormal(n,'creamPuff').divide(new T.Vector3(1+bulge,squash,1+bulge*1.32)).normalize();
+      const across=new T.Vector3().crossVectors(normal,tangent).normalize();
+      tangent.crossVectors(across,normal);
+      const rotation=new T.Quaternion().setFromRotationMatrix(new T.Matrix4().makeBasis(tangent,across,normal));
+      return {point,rotation};
+    });
+  });
 }
 
 export function poseBlend(mesh, progress){

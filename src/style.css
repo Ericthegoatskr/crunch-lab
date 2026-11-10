@@ -79,7 +79,7 @@ footer{display:flex;gap:10px;justify-content:space-between;padding:15px 0 22px;c
 
 .picker{min-inline-size:0;margin:0 0 16px;padding:0;border:0}
 .picker legend{padding:0 0 7px;font-size:13px;font-weight:750}
-.specimen-options{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+.specimen-options{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px}
 .specimen-option{position:relative;display:block;min-width:0;cursor:pointer}
 .specimen-choice{display:flex;align-items:center;gap:8px;min-height:53px;padding:5px 11px;border:1px solid var(--rule);border-radius:9px;background:#f7f3ea;transition:background-color 150ms var(--ease),border-color 150ms var(--ease)}
 .specimen-choice svg{display:block;width:39px;height:29px;flex:none}
@@ -115,11 +115,13 @@ footer{display:flex;gap:10px;justify-content:space-between;padding:15px 0 22px;c
 .stage-pair[data-dual="true"] .stage{height:clamp(280px,33vw,440px)}
 .stage-slot[data-side="right"] .stage-top i{background:#91c8fa}
 .stage[data-item="macaron"]{background:radial-gradient(ellipse at 49% 47%,#4e3842 0%,#332633 48%,#221a26 82%)}
+.stage[data-item="creamPuff"]{background:radial-gradient(ellipse at 49% 47%,#55412b 0%,#36291f 49%,#221a15 85%)}
 .side-squeeze{width:100%;margin-top:7px}
 .stage-pair[data-dual="true"] .stage-top,.stage-pair[data-dual="true"] figcaption{left:11px;right:11px;gap:5px}
 .stage-pair[data-dual="true"] .stage-top{letter-spacing:.03em;font-size:10px}
 .stage-pair[data-dual="true"] .side-label{white-space:nowrap}
 @media(max-width:900px) and (min-width:691px){
+ .specimen-options{grid-template-columns:repeat(3,minmax(0,1fr))}
  .specimen-choice{gap:5px;padding-inline:7px}.specimen-choice svg{width:30px}
 }
 @media(max-width:690px){

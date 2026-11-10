@@ -44,9 +44,31 @@ function noiseBurst(start, frequency, duration, volume, resonance) {
   source.stop(start+duration+.003);
 }
 
+function playPuffCrack(start,stage){
+  noiseBurst(start,1580,.025,.29,.85);
+  noiseBurst(start+.001,4480,.018,.57,.92);
+  noiseBurst(start+.004,7600,.013,.46,.78);
+  const breaks=[
+    [.023,.049],
+    [.016,.032,.054,.081,.111,.147,.186],
+    [.015,.027,.044,.067,.091,.120,.152,.185,.216,.255,.297,.344,.394,.457],
+  ][stage-1];
+  for(const [i,delay] of breaks.entries()){
+    const time=start+delay+Math.random()*.005;
+    const volume=(.39+Math.random()*.13)*Math.exp(-i*.105);
+    noiseBurst(time,4100+Math.random()*3200,.012+Math.random()*.009,volume,.86);
+    noiseBurst(time+.002,6900+Math.random()*1700,.010,volume*.62,1.06);
+    if(i%3===0)noiseBurst(time,1470+Math.random()*750,.021,volume*.52,.9);
+  }
+}
+
 export function playCrack(stage, id){
   if(context?.state!=='running')return;
   const start=context.currentTime+.004;
+  if(id==='creamPuff'){
+    playPuffCrack(start,stage);
+    return;
+  }
   const thin=id==='butter';
   const macaron=id==='macaron';
   const shift=thin?1.22:macaron?1.38:1;

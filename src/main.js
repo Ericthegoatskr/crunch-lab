@@ -167,6 +167,7 @@ function squeezeSlot(slot,manual=false){
   if(item.breakable){
     slot.stage++;
     slot.visual?.setStage(slot.stage);
+    if(manual && item.id==='creamPuff')slot.visual?.pulse();
     renderSlot(slot);
     renderControls();
     $('announcement').textContent=copy.stageChanged(quantity===2?side(slot):'',slot.stage,copy.stages[slot.stage]);

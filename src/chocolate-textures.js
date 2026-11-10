@@ -71,6 +71,42 @@ export function cocoaTextures() {
   return {map: texture(color, true), bumpMap: texture(relief)};
 }
 
+export function creamPuffTextures() {
+  const width=512, height=256;
+  const {color,relief}=mottledSurface(width,height,562,[174,104,44],[70,55,30]);
+  const pigment=color.getImageData(0,0,width,height);
+  const elevation=relief.getImageData(0,0,width,height);
+  const rand=random(425);
+  const columns=24, rows=15;
+  const tiles=Array.from({length:columns*rows},()=>[.19+rand()*.62,.19+rand()*.62,rand()]);
+  const roughness=noiseField(82,45,rand);
+  for(let y=0;y<height;y++)for(let x=0;x<width;x++){
+    const u=x/width, v=y/height;
+    const grain=roughness(u,v);
+    const px=u*columns+.16*grain, py=v*rows-.13*grain;
+    const col=Math.floor(px), row=Math.floor(py);
+    let closest=Infinity, next=Infinity, toast=0;
+    for(let j=row-1;j<=row+1;j++)for(let i=col-1;i<=col+1;i++){
+      const [dx,dy,tone]=tiles[((j+rows)%rows)*columns+(i+columns)%columns];
+      const d=(px-i-dx)**2+(py-j-dy)**2;
+      if(d<closest){next=closest;closest=d;toast=tone;}
+      else if(d<next)next=d;
+    }
+    const plate=Math.min(1,(next-closest)*5);
+    const topping=Math.min(1,Math.max(0,(.68-v)*5+grain*.22));
+    const tint=topping*(plate*(19+35*toast)-20)+Math.max(0,v-.56)*47;
+    const index=(y*width+x)*4;
+    pigment.data[index]+=tint;
+    pigment.data[index+1]+=tint*.92;
+    pigment.data[index+2]+=tint*.59;
+    const bump=topping*plate*47+grain*11;
+    for(let channel=0;channel<3;channel++)elevation.data[index+channel]+=bump;
+  }
+  color.putImageData(pigment,0,0);
+  relief.putImageData(elevation,0,0);
+  return {map:texture(color,true),bumpMap:texture(relief)};
+}
+
 export function macaronTextures() {
   const width=512, height=256;
   const color=surface(width,height), relief=surface(width,height);

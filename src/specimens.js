@@ -14,4 +14,7 @@ export const specimens = {
   macaron: {
     id: 'macaron', breakable: true, compression: .39, releaseTime: .089,
   },
+  creamPuff: {
+    id: 'creamPuff', breakable: true, compression: .44, releaseTime: .12,
+  },
 };
