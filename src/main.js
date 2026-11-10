@@ -5,13 +5,24 @@ import {enableAudio,muteAudio,playCrack,playPop} from './crack-audio.js';
 import {createHandRouter} from './hand-routing.js';
 import {specimens} from './specimens.js';
 import {mountWax} from './wax-scene.js';
+import {matchLocale,messages} from './locales.js';
 
 const $=id=>document.getElementById(id);
 const camera=$('camera-toggle'), cameraLabel=camera.querySelector('span');
 const video=$('camera-feed'), marks=$('landmarks'), preview=$('preview');
 const state=$('camera-state'), guidance=$('guidance');
 const sound=$('sound'), squeeze=$('squeeze'), reset=$('reset');
-const names=['完整','初裂','裂開','碎裂'];
+const language=$('language');
+const languageKey='crunch-lab-language';
+let mode='system';
+try{
+  const saved=localStorage.getItem(languageKey);
+  if(Object.hasOwn(messages,saved))mode=saved;
+}catch{
+  // The language switch still works when browser storage is unavailable.
+}
+let copy=messages.en;
+let cameraStatus={label:'cameraOff'};
 const choices=[...document.querySelectorAll('input[name="squishy"]')];
 const pair=$('stage-pair');
 const first=pair.firstElementChild;
@@ -46,41 +57,55 @@ function mount(slot){
   }
 }
 
-function status(label,message){
-  if(state.textContent!==label)state.textContent=label;
+function renderCameraStatus(){
+  const {label,hint,hands}=cameraStatus;
+  const labelText=copy[label];
+  const message=hands
+    ? hands.map((hand,i)=>copy.handHint(copy.side[i],copy.sideState[hand])).join(' · ')
+    : hint ? copy[hint] : copy.offHint(copy[readyHint()]);
+  if(state.textContent!==labelText)state.textContent=labelText;
   if(guidance.textContent!==message)guidance.textContent=message;
 }
+function status(label,hint,hands){
+  cameraStatus={label,hint,hands};
+  renderCameraStatus();
+}
+function cameraAction(key){
+  cameraLabel.dataset.copy=key;
+  cameraLabel.textContent=copy[key];
+}
 function side(slot){
-  return slot.index===0?'左顆':'右顆';
+  return copy.side[slot.index];
 }
 function canSqueeze(slot){
   return !slot.item.breakable||slot.stage<3;
 }
 function renderSlot(slot){
   const {item,stage,root}=slot;
-  const progress=item.breakable ? `${names[stage]} · ${stage}/3` : '鬆手回彈';
-  root.querySelector('.specimen').textContent=item.name;
+  const name=copy.items[item.id];
+  const progress=item.breakable ? `${copy.stages[stage]} · ${stage}/3` : copy.release;
+  root.querySelector('.specimen').textContent=name;
   root.querySelector('.stage-count').textContent=progress;
-  root.querySelector('.plate').textContent=item.plate;
+  root.querySelector('.plate').textContent=name;
   const sideLabel=root.querySelector('.side-label');
   sideLabel.hidden=quantity===1;
   sideLabel.textContent=side(slot);
   slot.figure.dataset.item=item.id;
   slot.button.hidden=quantity===1;
   slot.button.disabled=!canSqueeze(slot);
-  slot.button.textContent='手動捏'+side(slot);
-  slot.scene.setAttribute('aria-label',(quantity===2?side(slot)+'，':'')+item.name+'，'+progress);
+  slot.button.textContent=copy.manualSide[slot.index];
+  slot.scene.setAttribute('aria-label',[quantity===2?side(slot):null,name,progress].filter(Boolean).join(', '));
 }
 
 function renderControls(){
   const active=activeSlots();
   squeeze.disabled=active.every(slot=>!canSqueeze(slot));
-  squeeze.querySelector('span').textContent=quantity===2?'兩顆一起捏':'手動捏一次';
+  squeeze.querySelector('span').textContent=quantity===2?copy.manualBoth:copy.manual;
   reset.hidden=!active.some(slot=>slot.item.breakable);
   reset.disabled=!active.some(slot=>slot.stage);
-  reset.lastChild.textContent=quantity===2?'重置兩顆':'重置';
+  reset.querySelector('span').textContent=quantity===2?copy.resetBoth:copy.reset;
   const {item}=slots[0];
-  $('footer-gesture').textContent=quantity===2?'雙手各控制一顆':item.breakable?'握拳 → 張手 → 再握拳':'握拳壓扁 · 張手回彈';
+  $('footer-gesture').textContent=quantity===2?copy.dualFooter:item.breakable?copy.crackFooter:copy.softFooter;
 }
 function selectPicker(index){
   pickerTarget=index;
@@ -96,8 +121,8 @@ function resetTracking(){
   }
 }
 function readyHint(){
-  if(quantity===2)return '雙手放進畫面，先張手，再各自握拳。';
-  return slots[0].item.breakable ? '先張開手掌，再握拳。' : '握拳捏扁，張手讓它回彈。';
+  if(quantity===2)return 'readyDual';
+  return slots[0].item.breakable ? 'readyCrack' : 'readySoft';
 }
 function setQuantity(value){
   if(value===quantity)return;
@@ -113,8 +138,8 @@ function setQuantity(value){
   selectPicker(0);
   activeSlots().forEach(renderSlot);
   renderControls();
-  if(live&&!pending)status('追蹤中',readyHint());
-  else if(!live&&!pending&&state.textContent==='未開啟')status('未開啟','開啟相機後，'+readyHint());
+  if(live&&!pending)status('tracking',readyHint());
+  else if(cameraStatus.label==='cameraOff')renderCameraStatus();
 }
 document.querySelectorAll('input[name="quantity"]').forEach(input=>{
   input.addEventListener('change',()=>setQuantity(Number(input.value)));
@@ -131,8 +156,9 @@ for(const choice of choices){
     slot.visual?.setItem(slot.item);
     renderSlot(slot);
     renderControls();
-    if(live&&!pending)status('追蹤中',readyHint());
-    $('announcement').textContent=(quantity===2?side(slot):'')+'已換成'+slot.item.name+'。';
+    if(live&&!pending)status('tracking',readyHint());
+    else if(cameraStatus.label==='cameraOff')renderCameraStatus();
+    $('announcement').textContent=copy.switched(quantity===2?side(slot):'',copy.items[slot.item.id]);
   });
 }
 function squeezeSlot(slot,manual=false){
@@ -143,9 +169,9 @@ function squeezeSlot(slot,manual=false){
     slot.visual?.setStage(slot.stage);
     renderSlot(slot);
     renderControls();
-    $('announcement').textContent=(quantity===2?side(slot)+'，':'')+'第 '+slot.stage+' 階段：'+names[slot.stage]+'。';
+    $('announcement').textContent=copy.stageChanged(quantity===2?side(slot):'',slot.stage,copy.stages[slot.stage]);
     if(soundOn)playCrack(slot.stage,item.id);
-    if(quantity===1 && slot.stage===3 && live)status('已完成','還能握緊或鬆手改變內芯形狀，按「重置」可再玩。');
+    if(quantity===1 && slot.stage===3 && live)status('finished','finishedHint');
   }else{
     if(manual)slot.visual?.pulse();
     if(soundOn)playPop(item.id);
@@ -159,9 +185,39 @@ for(const slot of slots){
   slot.scene.addEventListener('webglcontextlost',()=>{slot.error.hidden=false;},true);
   slot.scene.addEventListener('webglcontextrestored',()=>{slot.error.hidden=true;},true);
 }
+function applyLanguage(){
+  const preferred=navigator.languages?.length ? navigator.languages : [navigator.language];
+  const locale=mode==='system' ? matchLocale(preferred) : mode;
+  copy=messages[locale];
+  document.documentElement.lang=locale;
+  document.title=copy.title;
+  document.querySelector('[data-copy-description]').content=copy.description;
+  document.querySelectorAll('[data-copy]').forEach(el=>{el.textContent=copy[el.dataset.copy];});
+  document.querySelectorAll('[data-copy-label]').forEach(el=>el.setAttribute('aria-label',copy[el.dataset.copyLabel]));
+  document.querySelectorAll('[data-copy-title]').forEach(el=>{el.title=copy[el.dataset.copyTitle];});
+  for(const choice of choices){
+    choice.closest('label').querySelector('strong').textContent=copy.items[choice.value];
+  }
+  $('announcement').textContent='';
+  activeSlots().forEach(renderSlot);
+  renderControls();
+  renderCameraStatus();
+}
+language.value=mode;
+language.addEventListener('change',()=>{
+  mode=language.value;
+  try{
+    if(mode==='system')localStorage.removeItem(languageKey);
+    else localStorage.setItem(languageKey,mode);
+  }catch{
+    // Use the selection for this page even when the browser blocks storage.
+  }
+  applyLanguage();
+});
+window.addEventListener('languagechange',()=>{if(mode==='system')applyLanguage();});
+
 mount(slots[0]);
-renderSlot(slots[0]);
-renderControls();
+applyLanguage();
 const initialQuantity=Number(document.querySelector('input[name="quantity"]:checked').value);
 if(initialQuantity===2)setQuantity(2);
 squeeze.addEventListener('click',manualSqueeze);
@@ -173,8 +229,8 @@ reset.addEventListener('click',()=>{
     renderSlot(slot);
   }
   renderControls();
-  $('announcement').textContent=quantity===2?'已重置兩顆。':'已重置'+slots[0].item.name+'。';
-  if(live&&!pending)status('追蹤中',readyHint());
+  $('announcement').textContent=copy.resetMessage(quantity===2?null:copy.items[slots[0].item.id]);
+  if(live&&!pending)status('tracking',readyHint());
   squeeze.focus({preventScroll:true});
 });
 window.addEventListener('keydown',event=>{
@@ -190,7 +246,7 @@ sound.addEventListener('click',async ()=>{
   sound.querySelector('use').setAttribute('href',soundOn?'#sound-icon':'#muted-icon');
 });
 
-function stopCamera(message='開啟相機後，'+readyHint(),label='未開啟'){
+function stopCamera(hint,label='cameraOff'){
   session++;
   cancelAnimationFrame(frame);
   live?.getTracks().forEach(track=>track.stop());
@@ -200,37 +256,37 @@ function stopCamera(message='開啟相機後，'+readyHint(),label='未開啟'){
   marks.getContext('2d').clearRect(0,0,marks.width,marks.height);
   preview.dataset.live='false';
   camera.dataset.active='false';
-  cameraLabel.textContent='開啟相機';
+  cameraAction('startCamera');
   resetTracking();
-  status(label,message);
+  status(label,hint);
 }
 function cameraMessage(error){
-  if(error.name==='NotAllowedError'||error.name==='SecurityError')return '相機權限未開啟。請在瀏覽器允許相機，或用下方按鈕試玩。';
-  if(error.name==='NotFoundError')return '找不到相機。請接上相機，或用下方按鈕試玩。';
-  if(error.name==='NotReadableError')return '相機目前無法使用。請關閉占用相機的程式再試。';
-  return '手部追蹤無法啟動。請檢查網路後再試，或用下方按鈕試玩。';
+  if(error.name==='NotAllowedError'||error.name==='SecurityError')return 'denied';
+  if(error.name==='NotFoundError')return 'noCamera';
+  if(error.name==='NotReadableError')return 'busyCamera';
+  return 'modelFailed';
 }
 function cameraFeedback(mapped,readings,now){
   if(quantity===2){
     const count=mapped.filter(Boolean).length;
     if(count>0){
       const hints=mapped.map((hand,i)=>{
-        if(!hand)return side(slots[i])+'待入鏡';
-        if(!canSqueeze(slots[i]))return side(slots[i])+'已完成';
-        return side(slots[i])+(readings[i].armed?'可捏':'先鬆手');
+        if(!hand)return 'missing';
+        if(!canSqueeze(slots[i]))return 'finished';
+        return readings[i].armed?'ready':'release';
       });
-      status(count===2?'雙手已入鏡':'偵測到一隻手',hints.join(' · '));
+      status(count===2?'twoVisible':'oneVisible',null,hints);
     }
-    else status('找不到手','把雙手放進畫面，掌心朝向相機。');
+    else status('lost','findBoth');
     return;
   }
   const slot=slots[0];
   if(slot.stage===3)return;
   const reading=readings[0];
-  if(!mapped[0] && now-slot.lastSeen>300)status('找不到手','讓一隻手完整入鏡，掌心朝向相機。');
-  else if(reading.armed)status('已張手',slot.item.breakable?'可以握拳了。':'可以握拳捏扁，張手讓它回彈。');
-  else if(reading.stable==='fist')status('已握拳',slot.item.breakable?'握緊會壓得更扁。張手後，再握一次。':'握緊會壓得更扁，鬆手就會回彈。');
-  else if(mapped[0] && !reading.armed)status('追蹤中',readyHint());
+  if(!mapped[0] && now-slot.lastSeen>300)status('lost','findOne');
+  else if(reading.armed)status('opened',slot.item.breakable?'openCrack':'openSoft');
+  else if(reading.stable==='fist')status('closed',slot.item.breakable?'closedCrack':'closedSoft');
+  else if(mapped[0] && !reading.armed)status('tracking',readyHint());
 }
 function trackHand(detector,id){
   let lastFrame=-1,lastRun=-Infinity;
@@ -260,7 +316,7 @@ function trackHand(detector,id){
         cameraFeedback(mapped,readings,now);
       }catch(error){
         console.warn('Squishy camera frame:',error);
-        stopCamera('手部追蹤中斷。請重新開啟相機，或用按鈕繼續。','已中斷');
+        stopCamera('trackingStopped','interrupted');
         return;
       }
     }
@@ -272,13 +328,13 @@ function trackHand(detector,id){
 camera.addEventListener('click',async ()=>{
   if(live||pending){stopCamera();return;}
   if(!window.isSecureContext||!navigator.mediaDevices?.getUserMedia){
-    status('相機不可用','請用 HTTPS 或 localhost 開啟，或使用手動捏球。');return;
+    status('cameraUnavailable','secureCamera');return;
   }
   const id=++session;
   pending=true;
   camera.dataset.active='true';
-  cameraLabel.textContent='取消開啟';
-  status('等待相機','請允許瀏覽器使用相機。');
+  cameraAction('cancelCamera');
+  status('waiting','allowCamera');
   try{
     const stream=await navigator.mediaDevices.getUserMedia({
       audio:false, video:{facingMode:'user',width:{ideal:640},height:{ideal:480},frameRate:{ideal:30,max:30}},
@@ -286,23 +342,23 @@ camera.addEventListener('click',async ()=>{
     if(id!==session){stream.getTracks().forEach(t=>t.stop());return;}
     live=stream;
     stream.getVideoTracks().forEach(track=>track.addEventListener('ended',()=>{
-      if(id===session)stopCamera('相機已斷開。請重新開啟相機，或用按鈕繼續。','已中斷');
+      if(id===session)stopCamera('disconnected','interrupted');
     },{once:true}));
     video.srcObject=stream;
     await video.play();
     if(id!==session)return;
     preview.dataset.live='true';
-    cameraLabel.textContent='關閉相機';
-    status('載入追蹤','正在載入手部追蹤模型。');
+    cameraAction('stopCamera');
+    status('loading','loadingHint');
     const detector=await loadDetector();
     if(id!==session)return;
     pending=false;
-    status('追蹤中',readyHint());
+    status('tracking',readyHint());
     trackHand(detector,id);
   }catch(error){
     if(id!==session)return;
     console.warn('Waxball camera initialization:',error);
-    stopCamera(cameraMessage(error),'未能開啟');
+    stopCamera(cameraMessage(error),'cameraFailed');
   }
 });
 window.addEventListener('pagehide',()=>{if(live||pending)stopCamera();});
