@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {classifyHand,createGestureGate} from '../src/gesture.js';
+import {readHand,createGestureGate} from '../src/gesture.js';
 
 test('requires an open palm, then counts each distinct fist once even after tracking loss',()=>{
   const gate=createGestureGate();
@@ -37,20 +37,45 @@ test('ignores a brief fist, a transient open palm, and stale frames',()=>{
   assert.equal(gate.sample('fist',1230).trigger,false);
 });
 
-test('classifies extended and curled landmarks independent of scale, and rejects mixed poses',()=>{
-  const make=(curl,scale=1)=>{
-    const points=Array.from({length:21},()=>({x:0,y:0,z:0}));
-    for(let i=0;i<4;i++){
-      const base=5+4*i;
-      const x=(i-1.5)*.25;
-      const coords=curl[i]?[[x,1,0],[x,1.38,.07],[x,1.22,.39],[x,.97,.28]]:
-        [[x,1,0],[x,1.38,.01],[x,1.68,.02],[x,1.9,.03]];
-      coords.forEach(([x,y,z],j)=>{points[base+j]={x:x*scale,y:y*scale,z:z*scale};});
+function hand(curls,scale=1){
+  const points=Array.from({length:21},()=>({x:0,y:0,z:0}));
+  for(let i=0;i<4;i++){
+    const x=(i-1.5)*.25;
+    const extended=[[1,0],[1.38,.01],[1.68,.02],[1.9,.03]];
+    const curled=[[1,0],[1.38,.07],[1.22,.39],[.87,.24]];
+    extended.forEach(([y,z],j)=>{
+      const t=curls[i];
+      points[5+4*i+j]={x:x*scale,y:(y+(curled[j][0]-y)*t)*scale,z:(z+(curled[j][1]-z)*t)*scale};
+    });
+  }
+  return points;
+}
+
+test('reads pose and squeeze from hand proportions independent of scale',()=>{
+  assert.deepEqual(readHand(undefined),{pose:'missing',grip:0});
+  assert.deepEqual(readHand(hand([0,0,0,0],.07)),{pose:'open',grip:0});
+  assert.equal(readHand(hand([1,1,1,1],1.8)).pose,'fist');
+  assert.equal(readHand(hand([0,1,1,0])).pose,'uncertain');
+  const curled=Array(4).fill(.66);
+  assert.ok(Math.abs(readHand(hand(curled,.07)).grip-readHand(hand(curled,1.8)).grip)<1e-9);
+});
+
+test('the same closed fist can squeeze harder without advancing a fracture',()=>{
+  const gate=createGestureGate();
+  const values=[0,.4,.5,.72,.95,0];
+  const samples=values.map(curl=>readHand(hand(Array(4).fill(curl))));
+  assert.equal(samples[1].pose,'uncertain');
+  assert.ok(samples[1].grip>0,'starts deforming before a fist is counted');
+  assert.ok(samples.slice(2,5).every(sample=>sample.pose==='fist'));
+  for(let i=1;i<=4;i++)assert.ok(samples[i].grip>samples[i-1].grip);
+  assert.equal(samples[5].grip,0);
+
+  let now=0;
+  let stage=0;
+  for(const {pose} of samples){
+    for(let i=0;i<5;i++){
+      if(gate.sample(pose,now+=46).trigger)stage++;
     }
-    return points;
-  };
-  assert.equal(classifyHand(undefined),'missing');
-  assert.equal(classifyHand(make([false,false,false,false],.07)),'open');
-  assert.equal(classifyHand(make([true,true,true,true],1.8)),'fist');
-  assert.equal(classifyHand(make([false,true,true,false])),'uncertain');
+  }
+  assert.equal(stage,1,'tightening or releasing the same fist must not add a fracture');
 });

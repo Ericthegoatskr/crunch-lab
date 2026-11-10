@@ -1,5 +1,5 @@
 import * as T from 'three';
-import {floor,makeSeeds,peelProgress,poseBlend,random,roundedGeometry,shellCell} from './wax-geometry.js';
+import {floor,gripScale,makeSeeds,peelProgress,poseBlend,random,roundedGeometry,shellCell} from './wax-geometry.js';
 
 const {clamp,lerp,smoothstep} = T.MathUtils;
 const easeOut = x => 1-(1-x)**3;
@@ -61,6 +61,8 @@ export function mountWax(host) {
   light(0xf6d8aa,.45,[2,1,4]);
   const waxGroup = new T.Group();
   scene.add(waxGroup);
+  const body = new T.Group();
+  waxGroup.add(body);
 
   const bumpMap = grain();
   const skin = new T.MeshPhysicalMaterial({
@@ -76,9 +78,9 @@ export function mountWax(host) {
     color:0xea8d40,roughness:.20,clearcoat:.88,clearcoatRoughness:.20,
     sheen:.42,sheenColor:0xf5ba62,sheenRoughness:.5,
   }));
-  waxGroup.add(core);
+  body.add(core);
   const whole = new T.Mesh(roundedGeometry(),skin);
-  waxGroup.add(whole);
+  body.add(whole);
 
   const shadow = contactShadow();
   scene.add(shadow);
@@ -125,6 +127,7 @@ export function mountWax(host) {
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
   const touch = matchMedia('(pointer: coarse)');
   let current=0,start=0,target=0,started=0,frame=0,pointer=0,spin=.20,previous=0,lastProgress=-1;
+  let grip=0,gripTarget=0,lastGrip=-1;
   const anchor=new T.Vector3(), origin=new T.Quaternion(), hinge=new T.Quaternion();
   const size=new ResizeObserver(([entry])=>{
     const {width,height}=entry.contentRect;
@@ -165,17 +168,28 @@ export function mountWax(host) {
     if(Math.abs(spin-desiredSpin)<.001)spin=desiredSpin;
     waxGroup.rotation.y=spin;
 
-    if(current!==lastProgress){
+    // Follow the live input without restarting the fracture animation. Release a little more
+    // slowly so the gel has time to spring back to its current damaged shape.
+    const follow=1-Math.exp(-Math.max(dt,.008)/(gripTarget>grip?.048:.082));
+    grip=reduced.matches ? gripTarget : lerp(grip,gripTarget,follow);
+    if(Math.abs(grip-gripTarget)<.004)grip=gripTarget;
+
+    if(current!==lastProgress||grip!==lastGrip){
+      const newPose=current!==lastProgress;
       lastProgress=current;
+      lastGrip=grip;
       whole.visible=current<.004;
       core.visible=!whole.visible;
-      poseBlend(core,current);
-      shadow.scale.set(3.05+.53*current,2.61+.39*current,1);
+      if(newPose)poseBlend(core,current);
+      const scale=gripScale(grip);
+      body.scale.set(scale.x,scale.y,scale.z);
+      body.position.y=floor*(1-scale.y);
+      shadow.scale.set((3.05+.53*current)*scale.x,(2.61+.39*current)*scale.z,1);
       const step=Math.min(Math.floor(current),2);
       for(const {mesh,centers,landing,openingAxis,finish,detach,release,lift,shade} of pieces){
         mesh.visible=!whole.visible;
         if(!mesh.visible){shade.visible=false;continue;}
-        poseBlend(mesh,current);
+        if(newPose)poseBlend(mesh,current);
         anchor.lerpVectors(centers[step],centers[step+1],current-step);
         const peel=detach?peelProgress(current,release):0;
         const pry=smoothstep(peel,0,.21);
@@ -183,10 +197,14 @@ export function mountWax(host) {
         // The rim lifts first; the body then falls faster than it travels horizontally.
         const lateral=easeOut(travel);
         const drop=travel**2;
+        if(!newPose&&travel===1)continue;
+        const flakeScale=gripScale(grip,1-lateral);
+        mesh.scale.set(flakeScale.x,flakeScale.y,flakeScale.z);
+        const y=lerp(anchor.y,landing.y,drop)+lift*pry*(1-drop);
         mesh.position.set(
-          lerp(anchor.x,landing.x,lateral),
-          lerp(anchor.y,landing.y,drop)+lift*pry*(1-drop),
-          lerp(anchor.z,landing.z,lateral),
+          lerp(anchor.x,landing.x,lateral)*flakeScale.x,
+          floor+(y-floor)*flakeScale.y,
+          lerp(anchor.z,landing.z,lateral)*flakeScale.z,
         );
         hinge.setFromAxisAngle(openingAxis,.23*pry);
         mesh.quaternion.copy(peel===0 ? origin : hinge).slerp(finish,lateral);
@@ -195,7 +213,7 @@ export function mountWax(host) {
       }
     }
     renderer.render(scene,camera);
-    if(current!==target||spin!==desiredSpin)schedule();
+    if(current!==target||spin!==desiredSpin||grip!==gripTarget)schedule();
   }
   schedule();
   return {
@@ -203,6 +221,11 @@ export function mountWax(host) {
       start=current;
       target=value;
       started=performance.now();
+      schedule();
+    },
+    setGrip(value){
+      if(value===gripTarget)return;
+      gripTarget=value;
       schedule();
     },
     dispose(){

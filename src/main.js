@@ -1,5 +1,5 @@
 import './style.css';
-import {classifyHand,createGestureGate} from './gesture.js';
+import {readHand,createGestureGate} from './gesture.js';
 import {loadDetector,drawHand} from './hand-camera.js';
 import {enableAudio,playCrack} from './crack-audio.js';
 import {mountWax} from './wax-scene.js';
@@ -45,12 +45,13 @@ function advance(){
   if(stage>=3)return;
   renderStage(stage+1);
   if(soundOn)playCrack(stage);
-  if(stage===3 && live)status('已完成','蠟球已碎裂。按「重置」可以再玩一次。');
+  if(stage===3 && live)status('已完成','還能握緊或鬆手改變內芯形狀，按「重置」可再玩。');
 }
 renderStage(0,false);
 squeeze.addEventListener('click',advance);
 reset.addEventListener('click',()=>{
   gate.reset();
+  visual?.setGrip(0);
   renderStage(0);
   if(live)status('追蹤中','先張開手掌，再握拳。');
   // Keep focus usable when the reset control becomes disabled.
@@ -80,6 +81,7 @@ function stopCamera(message='開啟相機後，先張手，再握拳。',label='
   camera.dataset.active='false';
   cameraLabel.textContent='開啟相機';
   gate.reset();
+  visual?.setGrip(0);
   status(label,message);
 }
 function cameraMessage(error){
@@ -97,15 +99,18 @@ function trackHand(detector,id){
       try{
         const result=detector.detectForVideo(video,now);
         const points=result.landmarks[0];
-        const pose=classifyHand(points,result.worldLandmarks[0],video.videoWidth/video.videoHeight);
+        const {pose,grip}=readHand(points,result.worldLandmarks[0],video.videoWidth/video.videoHeight);
         drawHand(marks,video,points);
-        if(points)lastSeen=now;
+        if(pose!=='missing'){
+          lastSeen=now;
+          visual?.setGrip(grip);
+        }
         const reading=gate.sample(pose,now);
         if(reading.trigger)advance();
         if(stage!==3){
           if(!points && now-lastSeen>300)status('找不到手','讓一隻手完整入鏡，掌心朝向相機。');
           else if(reading.stable==='open')status('已張手','握拳，推進一個破裂階段。');
-          else if(reading.stable==='fist')status('已握拳','張開手再握一次；目前的裂痕會保留。');
+          else if(reading.stable==='fist')status('已握拳','握緊會壓得更扁。張手後，再握一次。');
           else if(points && !reading.armed)status('追蹤中','先張開手掌，再握拳。');
         }
       }catch(error){
@@ -114,6 +119,7 @@ function trackHand(detector,id){
         return;
       }
     }
+    if(now-lastSeen>160)visual?.setGrip(0);
     frame=requestAnimationFrame(tick);
   }
   frame=requestAnimationFrame(tick);

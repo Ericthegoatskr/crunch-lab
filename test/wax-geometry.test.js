@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {Mesh, Vector3} from 'three';
-import {makeSeeds, peelProgress, poseBlend, random, shellCell} from '../src/wax-geometry.js';
+import {gripScale, makeSeeds, peelProgress, poseBlend, random, shellCell} from '../src/wax-geometry.js';
 
 test('the unbroken cell rims fit together, and all baked shell poses face outward',()=>{
   const seeds=makeSeeds(random(1736));
@@ -60,4 +60,13 @@ test('attachment survives the first two poses and a staggered peel settles fully
   assert.deepEqual(mesh.morphTargetInfluences,[0,0,0]);
   geo.dispose();
   mesh.material.dispose();
+});
+
+
+test('live squeeze is reversible and does not deform landed shards',()=>{
+  const neutral=gripScale(0), partial=gripScale(.5), full=gripScale(1);
+  assert.ok(full.y<partial.y && partial.y<neutral.y);
+  assert.ok(full.x>partial.x && partial.x>neutral.x);
+  assert.ok(full.z>partial.z && partial.z>neutral.z);
+  assert.deepEqual(gripScale(1,0),neutral);
 });

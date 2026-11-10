@@ -208,6 +208,13 @@ export function poseBlend(mesh, progress){
   weights[2]=start===2 ? t : 0;
 }
 
+// This reversible scale is applied on top of the baked fracture pose, around the floor.
+// Flying flakes lose the live deformation as they separate from the core.
+export function gripScale(grip, attachment=1) {
+  const amount=T.MathUtils.clamp(grip,0,1)*attachment;
+  return {x:1+.16*amount,y:1-.41*amount,z:1+.19*amount};
+}
+
 // A flake stays anchored until its release threshold, then peels before it travels.
 export function peelProgress(progress,release) {
   return Math.max(0,Math.min(1,(progress-2-release)/(1-release)));
