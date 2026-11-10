@@ -6,7 +6,7 @@ Crack open a piece of Dubai chocolate or squeeze a vanilla cream puff until cust
 
 **[Play Crunch Lab](https://ericthegoatskr.github.io/crunch-lab/)**
 
-![A vanilla cream puff after the second squeeze, with golden shell pieces still attached and custard pushing through the cracks](docs/cream-puff-preview.png)
+![Three squeezes of a vanilla cream puff: the shell cracks, custard pushes through, and the shell fragments scatter](docs/cream-puff-demo.gif)
 
 ## How to play
 

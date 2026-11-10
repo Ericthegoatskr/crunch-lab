@@ -6,7 +6,7 @@
 
 **[立即試玩 Crunch Lab](https://ericthegoatskr.github.io/crunch-lab/)**
 
-![香草菠蘿泡芙捏到第二階段，金黃酥皮仍黏在內餡上，卡士達從裂縫擠出](docs/cream-puff-preview.png)
+![香草菠蘿泡芙的三段捏壓示範：酥皮初裂、卡士達從裂縫擠出、酥皮碎片散開](docs/cream-puff-demo.gif)
 
 ## 怎麼玩
 
