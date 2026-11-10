@@ -1,5 +1,7 @@
 # Crunch Lab｜脆皮捏捏模擬器
 
+**繁體中文** · [English](README.en.md)
+
 在瀏覽器裡捏碎一顆杜拜巧克力，或把香草菠蘿泡芙捏到卡士達從裂縫擠出來。相機會追蹤手指彎曲的程度，握得越緊，3D 食物就壓得越扁。雙顆模式可以各選一款，用兩隻手分別控制。
 
 **[立即試玩 Crunch Lab](https://ericthegoatskr.github.io/crunch-lab/)**
