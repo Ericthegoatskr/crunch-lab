@@ -80,7 +80,7 @@ footer{display:flex;gap:10px;justify-content:space-between;padding:15px 0 22px;c
 }
 @media(max-width:690px){
  .shell{padding-inline:16px}.masthead{min-height:55px}
- .intro{display:block;padding:23px 0 19px}.intro p{text-align:left;margin-top:8px}.narrow-break{display:none}
+ .intro{display:block;padding:23px 0 19px}h1{font-size:clamp(29px,9.6vw,43px)}.intro p{text-align:left;margin-top:8px}.narrow-break{display:none}
  .bench{grid-template-columns:minmax(0,1fr);gap:12px}.stage{height:clamp(286px,88vw,435px)}
  .stage-top,figcaption{left:15px;right:15px}.stage-top{top:15px}figcaption{bottom:15px}.reticle{inset:35px 15px}
  .controls{padding:12px;display:grid;grid-template-columns:minmax(99px,1fr) minmax(0,1.5fr);gap:8px 12px;align-items:start}

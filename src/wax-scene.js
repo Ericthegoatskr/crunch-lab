@@ -1,21 +1,8 @@
 import * as T from 'three';
+import {floor,makeSeeds,peelProgress,poseBlend,random,roundedGeometry,shellCell} from './wax-geometry.js';
 
-const clamp = T.MathUtils.clamp;
-const blend = T.MathUtils.lerp;
-const up = new T.Vector3(0, 1, 0);
-const radius = 1.13;
-
-function random(seed) {
-  return () => {
-    seed = (Math.imul(1664525, seed) + 1013904223) >>> 0;
-    return seed / 4294967296;
-  };
-}
-
-function waxRadius(n) {
-  return radius + .027 * Math.sin(4 * n.x + n.y * 2) * Math.sin(5 * n.z - n.y)
-    + .017 * Math.cos(n.y * 9 + n.z * 3) * Math.cos(n.x * 6 - n.z * 4);
-}
+const {clamp,lerp,smoothstep} = T.MathUtils;
+const easeOut = x => 1-(1-x)**3;
 
 function grain() {
   const canvas = document.createElement('canvas');
@@ -34,86 +21,6 @@ function grain() {
   return texture;
 }
 
-function skinGeometry() {
-  const geometry = new T.SphereGeometry(1, 96, 64);
-  const p = geometry.attributes.position;
-  const v = new T.Vector3();
-  for (let i = 0; i < p.count; i++) {
-    v.fromBufferAttribute(p, i).normalize().multiplyScalar(waxRadius(v));
-    p.setXYZ(i, v.x, v.y, v.z);
-  }
-  geometry.computeVertexNormals();
-  return geometry;
-}
-
-// In each seed's tangent plane, the spherical bisectors are straight lines.
-// Clip a polygon to the seed's cell, then project its tessellated surface onto the wax.
-function cellGeometry(seed, seeds) {
-  const u = new T.Vector3().crossVectors(Math.abs(seed.y) > .9 ? new T.Vector3(1, 0, 0) : up, seed).normalize();
-  const v = new T.Vector3().crossVectors(seed, u);
-  let corners = [[-4, -4], [4, -4], [4, 4], [-4, 4]];
-  for (const other of seeds) {
-    if (other === seed) continue;
-    const d = seed.clone().sub(other);
-    const a = d.dot(u), b = d.dot(v), c = d.dot(seed);
-    corners = corners.flatMap((p, i) => {
-      const q = corners[(i + 1) % corners.length];
-      const fp = a*p[0] + b*p[1] + c, fq = a*q[0] + b*q[1] + c;
-      const segment = fp >= 0 ? [p] : [];
-      if ((fp >= 0) !== (fq >= 0)) {
-        const t = fp/(fp-fq);
-        segment.push([blend(p[0], q[0], t), blend(p[1], q[1], t)]);
-      }
-      return segment;
-    });
-  }
-
-  const center = seed.clone().multiplyScalar(waxRadius(seed));
-  const positions = [], normals = [], uv = [];
-  function surface(p, depth = 0) {
-    const n = seed.clone().addScaledVector(u, p[0]).addScaledVector(v, p[1]).normalize();
-    return { n, point: n.clone().multiplyScalar(waxRadius(n)-depth).sub(center), uv: [.5+Math.atan2(n.z,-n.x)/(2*Math.PI), .5+Math.asin(n.y)/Math.PI] };
-  }
-  function triangle(a, b, c, edge = false) {
-    const normal = edge ? b.point.clone().sub(a.point).cross(c.point.clone().sub(a.point)).normalize() : null;
-    const vertices = [a,b,c];
-    const seam = Math.max(...vertices.map(p => p.uv[0])) - Math.min(...vertices.map(p => p.uv[0])) > .5;
-    for (const p of vertices) {
-      positions.push(...p.point);
-      normals.push(...(normal || p.n));
-      uv.push(p.uv[0]+(seam && p.uv[0] < .5 ? 1 : 0), p.uv[1]);
-    }
-  }
-  const steps = 7;
-  corners.forEach((a, i) => {
-    const b = corners[(i+1)%corners.length];
-    const at = (j,k) => surface([(a[0]*j+b[0]*k)/steps,(a[1]*j+b[1]*k)/steps]);
-    for (let j=0; j<steps; j++) for (let k=0; j+k<steps; k++) {
-      const p=at(j,k), q=at(j+1,k), r=at(j,k+1);
-      triangle(p,q,r);
-      if(j+k<steps-1) triangle(q,at(j+1,k+1),r);
-    }
-  });
-  const outer = positions.length/3;
-  corners.forEach((a, i) => {
-    const b = corners[(i+1)%corners.length];
-    for(let j=0;j<steps;j++){
-      const p=[blend(a[0],b[0],j/steps),blend(a[1],b[1],j/steps)];
-      const q=[blend(a[0],b[0],(j+1)/steps),blend(a[1],b[1],(j+1)/steps)];
-      triangle(surface(q),surface(p),surface(p,.065),true);
-      triangle(surface(q),surface(p,.065),surface(q,.065),true);
-      triangle(surface([0,0],.065),surface(q,.065),surface(p,.065),true);
-    }
-  });
-  const geo = new T.BufferGeometry();
-  geo.setAttribute('position',new T.Float32BufferAttribute(positions,3));
-  geo.setAttribute('normal',new T.Float32BufferAttribute(normals,3));
-  geo.setAttribute('uv',new T.Float32BufferAttribute(uv,2));
-  geo.addGroup(0,outer,0);
-  geo.addGroup(outer,positions.length/3-outer,1);
-  return {geo, center};
-}
-
 function contactShadow() {
   const map = document.createElement('canvas');
   map.width = map.height = 128;
@@ -128,7 +35,7 @@ function contactShadow() {
     map:new T.CanvasTexture(map), transparent:true, depthWrite:false, opacity:.78,
   }));
   mesh.rotation.x = -Math.PI/2;
-  mesh.position.y=-1.14;
+  mesh.position.y=floor-.008;
   return mesh;
 }
 
@@ -141,7 +48,7 @@ export function mountWax(host) {
   const scene = new T.Scene();
   const camera = new T.PerspectiveCamera(34,1,.1,30);
   camera.position.set(.12,2.03,6.5);
-  camera.lookAt(0,-.17,0);
+  camera.lookAt(0,-.23,0);
 
   const lighting = new T.HemisphereLight(0xffeddc,0x643116,1.7);
   scene.add(lighting);
@@ -157,113 +64,160 @@ export function mountWax(host) {
 
   const bumpMap = grain();
   const skin = new T.MeshPhysicalMaterial({
-    color:0xd0642f,roughness:.39,clearcoat:.36,clearcoatRoughness:.28,
-    bumpMap,bumpScale:.023,
+    color:0xca582a,roughness:.43,clearcoat:.29,clearcoatRoughness:.31,
+    bumpMap,bumpScale:.021,
   });
-  const face = new T.Mesh(new T.SphereGeometry(1,96,64),new T.MeshPhysicalMaterial({
-    color:0xed9a3d,roughness:.23,clearcoat:.67,clearcoatRoughness:.24,
+  const shellSkin=skin.clone();
+  shellSkin.vertexColors=true;
+  const edge = new T.MeshStandardMaterial({
+    color:0xb96d40,roughness:.71,bumpMap,bumpScale:.037,side:T.DoubleSide,vertexColors:true,
+  });
+  const core = new T.Mesh(roundedGeometry(true),new T.MeshPhysicalMaterial({
+    color:0xea8d40,roughness:.20,clearcoat:.88,clearcoatRoughness:.20,
+    sheen:.42,sheenColor:0xf5ba62,sheenRoughness:.5,
   }));
-  const innerPos=face.geometry.attributes.position;
-  const n=new T.Vector3();
-  for(let i=0;i<innerPos.count;i++){
-    n.fromBufferAttribute(innerPos,i).normalize();
-    const a=(waxRadius(n)-.085) * (1+.021*Math.sin(n.x*7+n.z*5)*Math.cos(n.y*7));
-    innerPos.setXYZ(i,n.x*a,n.y*a,n.z*a);
-  }
-  face.geometry.computeVertexNormals();
-  waxGroup.add(face);
-  const whole = new T.Mesh(skinGeometry(),skin);
+  waxGroup.add(core);
+  const whole = new T.Mesh(roundedGeometry(),skin);
   waxGroup.add(whole);
 
-  const shadow=contactShadow();
+  const shadow = contactShadow();
   scene.add(shadow);
   const rand = random(1736);
-  const count=43;
-  const seeds=Array.from({length:count},(_,i)=>{
-    const y = 1-2*(i+.5)/count;
-    const az = i*Math.PI*(3-Math.sqrt(5))+(rand()-.5)*.31;
-    const r = Math.sqrt(1-y*y);
-    return new T.Vector3(Math.cos(az)*r,y+(rand()-.5)*.12,Math.sin(az)*r).normalize();
-  });
-  const edge = new T.MeshStandardMaterial({color:0xe59556,roughness:.65,side:T.DoubleSide});
+  const seeds = makeSeeds(rand);
   const pieces = seeds.map((dir,i)=>{
-    const {geo,center}=cellGeometry(dir,seeds);
-    const outer=skin.clone();
-    outer.color.multiplyScalar(.86+rand()*.24);
-    const mesh=new T.Mesh(geo,[outer,edge]);
+    const {geo,centers}=shellCell(dir,seeds);
+    const mesh=new T.Mesh(geo,[shellSkin,edge]);
+    // Geometry and its anchors move independently; the base bounds don't cover every morph.
+    mesh.frustumCulled=false;
     waxGroup.add(mesh);
-    const angle=Math.atan2(dir.z,dir.x)+(rand()-.5)*.74;
-    const detached = dir.y < .74 && i%5 !== 0;
-    const distance=(1.25+rand()*.64) * (Math.abs(Math.cos(angle)) > .72 ? 1 : .88);
-    const fall=new T.Vector3(Math.cos(angle)*distance,-1.04+rand()*.18,Math.sin(angle)*distance*.77);
-    return {mesh,center,dir,detached,fall,turn:new T.Euler((rand()-.5)*2.1,(rand()-.5)*2.5,(rand()-.5)*2.2),bias:rand()};
+
+    const detach = dir.y < .67 || i%3===0;
+    const angle=Math.atan2(dir.z,dir.x)+(rand()-.5)*.71;
+    const travel=1.34+rand()*.82+(dir.y>.18?.09:0);
+    const landing=new T.Vector3(Math.cos(angle)*travel,0,Math.sin(angle)*travel*.79);
+    const openingAxis=new T.Vector3(dir.z,0,-dir.x).normalize();
+    // Let the broad face hit the surface. A little tilt keeps the pieces from looking arranged.
+    const localNormal=new T.Vector3(dir.x/1.30,dir.y/.43,dir.z/1.39).normalize();
+    const restNormal=new T.Vector3((rand()-.5)*.51,rand()>.31?1:-1,(rand()-.5)*.49).normalize();
+    const twist=new T.Quaternion().setFromAxisAngle(restNormal,(rand()-.5)*1.30);
+    const finish=twist.multiply(new T.Quaternion().setFromUnitVectors(localNormal,restNormal));
+    const release=.075+rand()*.23+(dir.y>.38?.07:0);
+    const lift=.13+rand()*.20;
+
+    const last=geo.morphAttributes.position[2];
+    const p=new T.Vector3();
+    let minY=Infinity, width=0;
+    for(let j=0;j<last.count;j++){
+      p.fromBufferAttribute(last,j).applyQuaternion(finish);
+      minY=Math.min(p.y,minY);
+      width=Math.max(width,Math.hypot(p.x,p.z));
+    }
+    landing.y=floor-minY+.011;
+    const shade = new T.Mesh(shadow.geometry,shadow.material.clone());
+    shade.rotation.x=-Math.PI/2;
+    shade.scale.set(2*width+.18,1.65*width+.14,1);
+    shade.position.set(landing.x,floor-.004,landing.z);
+    shade.visible=false;
+    waxGroup.add(shade);
+    return {mesh,centers,landing,openingAxis,finish,detach,release,lift,shade};
   });
 
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
   const touch = matchMedia('(pointer: coarse)');
-  let current=0,target=0,previous=0,frame=0,impact=0,pointer=0,spin=.20,instantReset=false;
+  let current=0,start=0,target=0,started=0,frame=0,pointer=0,spin=.20,previous=0,lastProgress=-1;
+  const anchor=new T.Vector3(), origin=new T.Quaternion(), hinge=new T.Quaternion();
   const size=new ResizeObserver(([entry])=>{
     const {width,height}=entry.contentRect;
     if(!width||!height)return;
     camera.aspect=width/height;
-    camera.fov= camera.aspect<1.32 ? 43 : 34;
+    camera.fov=camera.aspect<1.32 ? 43 : 34;
     camera.updateProjectionMatrix();
     renderer.setSize(width,height,false);
+    schedule();
   });
   size.observe(host);
-  host.addEventListener('pointermove',event=>{
-    if(touch.matches || reduced.matches)return;
+  function point(event){
+    if(touch.matches||reduced.matches)return;
     const rect=host.getBoundingClientRect();
-    pointer=((event.clientX-rect.left)/rect.width-.5)*.40;
-  });
-  host.addEventListener('pointerleave',()=>{ pointer=0; });
+    pointer=((event.clientX-rect.left)/rect.width-.5)*.36;
+    schedule();
+  }
+  function centerPointer(){pointer=0;schedule();}
+  host.addEventListener('pointermove',point);
+  host.addEventListener('pointerleave',centerPointer);
+  reduced.addEventListener('change',schedule);
 
+  function schedule(){
+    if(!frame)frame=requestAnimationFrame(render);
+  }
   function render(now){
-    const dt=Math.min((now-(previous||now))/1000,.048);
+    frame=0;
+    const dt=Math.min((now-(previous||now))/1000,.05);
     previous=now;
-    const follow=1-Math.exp(-dt*12.4);
-    current=reduced.matches||instantReset ? target : blend(current,target,follow);
-    if(Math.abs(current-target)<.001)current=target;
-    instantReset=false;
-    impact*=Math.exp(-dt*9);
-    const p=current/3;
-    const squash=1-.56*p-(reduced.matches?0:impact*.035);
-    const widen=1+.24*p;
-    spin=blend(spin,.2+(reduced.matches?0:pointer),1-Math.exp(-dt*7));
+    const duration=target===3 ? 680 : 265;
+    const elapsed=clamp((now-started)/duration,0,1);
+    // The final phase uses its timeline directly so individual flakes can leave in sequence.
+    current=reduced.matches||target===0 ? target : lerp(start,target,target===3 ? elapsed : easeOut(elapsed));
+    if(elapsed===1)current=target;
+
+    const desiredSpin=.20+(reduced.matches?0:pointer);
+    spin=reduced.matches ? desiredSpin : lerp(spin,desiredSpin,1-Math.exp(-Math.max(dt,.008)*12));
+    if(Math.abs(spin-desiredSpin)<.001)spin=desiredSpin;
     waxGroup.rotation.y=spin;
-    const y=radius*(squash-1);
-    whole.visible=current<=.015;
-    face.visible=!whole.visible;
-    face.scale.set(widen,squash,widen);
-    face.position.y=y;
-    shadow.scale.set(3.2+1.05*p,2.72+.74*p,1);
-    const spread=clamp(current-2,0,1);
-    for(const {mesh,center,dir,detached,fall,turn,bias} of pieces){
-      mesh.visible=!whole.visible;
-      if(!mesh.visible)continue;
-      const crack=clamp(current,0,1)*(.022+bias*.052)+clamp(current-1,0,1)*(.06+bias*.13);
-      const amount=detached?spread:0;
-      const px=center.x*widen+dir.x*crack, py=center.y*squash+y+dir.y*crack, pz=center.z*widen+dir.z*crack;
-      const arc=reduced.matches?0:Math.sin(amount*Math.PI)*(.1+.31*bias);
-      mesh.position.set(blend(px,fall.x,amount),blend(py,fall.y,amount)+arc,blend(pz,fall.z,amount));
-      mesh.scale.set(blend(widen,1,amount),blend(squash,1,amount),blend(widen,1,amount));
-      const opening=crack*.9+amount;
-      mesh.rotation.set(turn.x*opening,turn.y*opening,turn.z*opening);
+
+    if(current!==lastProgress){
+      lastProgress=current;
+      whole.visible=current<.004;
+      core.visible=!whole.visible;
+      poseBlend(core,current);
+      shadow.scale.set(3.05+.53*current,2.61+.39*current,1);
+      const step=Math.min(Math.floor(current),2);
+      for(const {mesh,centers,landing,openingAxis,finish,detach,release,lift,shade} of pieces){
+        mesh.visible=!whole.visible;
+        if(!mesh.visible){shade.visible=false;continue;}
+        poseBlend(mesh,current);
+        anchor.lerpVectors(centers[step],centers[step+1],current-step);
+        const peel=detach?peelProgress(current,release):0;
+        const pry=smoothstep(peel,0,.21);
+        const travel=clamp((peel-.15)/.85,0,1);
+        // The rim lifts first; the body then falls faster than it travels horizontally.
+        const lateral=easeOut(travel);
+        const drop=travel**2;
+        mesh.position.set(
+          lerp(anchor.x,landing.x,lateral),
+          lerp(anchor.y,landing.y,drop)+lift*pry*(1-drop),
+          lerp(anchor.z,landing.z,lateral),
+        );
+        hinge.setFromAxisAngle(openingAxis,.23*pry);
+        mesh.quaternion.copy(peel===0 ? origin : hinge).slerp(finish,lateral);
+        shade.visible=travel>.40;
+        shade.material.opacity=.65*smoothstep(travel,.4,1);
+      }
     }
     renderer.render(scene,camera);
-    frame=requestAnimationFrame(render);
+    if(current!==target||spin!==desiredSpin)schedule();
   }
-  frame=requestAnimationFrame(render);
+  schedule();
   return {
     setStage(value){
+      start=current;
       target=value;
-      instantReset=value===0;
-      impact=value?1:0;
+      started=performance.now();
+      schedule();
     },
     dispose(){
       cancelAnimationFrame(frame);
       size.disconnect();
-      scene.traverse(obj=>{obj.geometry?.dispose();for(const m of [].concat(obj.material||[])) m.dispose();});
+      host.removeEventListener('pointermove',point);
+      host.removeEventListener('pointerleave',centerPointer);
+      reduced.removeEventListener('change',schedule);
+      const geometries=new Set(), materials=new Set();
+      scene.traverse(obj=>{
+        if(obj.geometry)geometries.add(obj.geometry);
+        for(const m of [].concat(obj.material||[]))materials.add(m);
+      });
+      geometries.forEach(g=>g.dispose());
+      materials.forEach(m=>m.dispose());
       bumpMap.dispose();
       shadow.material.map.dispose();
       renderer.dispose();
