@@ -21,20 +21,33 @@ test('requires an open palm, then counts each distinct fist once even after trac
   assert.equal(hold('fist'),0,'reset still requires an open palm');
 });
 
-test('ignores a brief fist, a transient open palm, and stale frames',()=>{
+test('counts quick squeezes with a partly released hand and tolerates an unclear frame',()=>{
+  const gate=createGestureGate();
+  assert.equal(gate.sample('open',0).armed,false);
+  assert.equal(gate.sample('open',48).armed,true);
+  assert.equal(gate.sample('fist',96).trigger,false);
+  assert.equal(gate.sample('fist',144).trigger,true);
+  assert.equal(gate.sample('uncertain',192,.32).armed,false,'a half-closed hand does not rearm');
+  gate.sample('uncertain',240,.19);
+  assert.equal(gate.sample('uncertain',288,.18).armed,true,'a clear release does not require straight fingers');
+  assert.equal(gate.sample('fist',336).trigger,false);
+  gate.sample('uncertain',384,.39);
+  assert.equal(gate.sample('uncertain',432,.63).trigger,true,'a high grip confirms the squeeze after one unclear frame');
+});
+
+test('ignores isolated detections and evidence separated by a stall',()=>{
   const gate=createGestureGate();
   gate.sample('open',0);
-  gate.sample('open',500);
-  assert.equal(gate.sample('open',550).armed,false);
-  assert.equal(gate.sample('open',630).armed,true);
-  gate.sample('fist',680);
-  assert.equal(gate.sample('fist',740).trigger,false);
-  gate.sample('uncertain',770);
-  gate.sample('fist',800);
-  assert.equal(gate.sample('fist',920).trigger,true);
-  gate.sample('open',950);
-  assert.equal(gate.sample('fist',1080).trigger,false);
-  assert.equal(gate.sample('fist',1230).trigger,false);
+  assert.equal(gate.sample('open',150).armed,false);
+  assert.equal(gate.sample('open',184).armed,true);
+  gate.sample('fist',217);
+  gate.sample('open',250);
+  assert.equal(gate.sample('fist',283).trigger,false);
+  assert.equal(gate.sample('fist',420).trigger,false);
+  assert.equal(gate.sample('fist',453).trigger,true);
+  gate.sample('open',486);
+  assert.equal(gate.sample('fist',519).trigger,false,'an isolated open frame does not rearm');
+  assert.equal(gate.sample('fist',552).trigger,false);
 });
 
 function hand(curls,scale=1){

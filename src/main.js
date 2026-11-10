@@ -224,8 +224,14 @@ function cameraMessage(error){
 function cameraFeedback(mapped,readings,now){
   if(quantity===2){
     const count=mapped.filter(Boolean).length;
-    if(count===2)status('雙手已入鏡','橘色對應左顆，藍色對應右顆。雙手可以一起捏。');
-    else if(count===1)status('偵測到一隻手',side(slots[mapped[0]?0:1])+'可捏。把另一隻手也放進畫面。');
+    if(count>0){
+      const hints=mapped.map((hand,i)=>{
+        if(!hand)return side(slots[i])+'待入鏡';
+        if(!canSqueeze(slots[i]))return side(slots[i])+'已完成';
+        return side(slots[i])+(readings[i].armed?'可捏':'先鬆手');
+      });
+      status(count===2?'雙手已入鏡':'偵測到一隻手',hints.join(' · '));
+    }
     else status('找不到手','把雙手放進畫面，掌心朝向相機。');
     return;
   }
@@ -233,7 +239,7 @@ function cameraFeedback(mapped,readings,now){
   if(slot.stage===3)return;
   const reading=readings[0];
   if(!mapped[0] && now-slot.lastSeen>300)status('找不到手','讓一隻手完整入鏡，掌心朝向相機。');
-  else if(reading.stable==='open')status('已張手',slot.item.breakable?'握拳，推進一個破裂階段。':readyHint());
+  else if(reading.armed)status('已張手',slot.item.breakable?'可以握拳了。':'可以握拳捏扁，張手讓它回彈。');
   else if(reading.stable==='fist')status('已握拳',slot.item.breakable?'握緊會壓得更扁。張手後，再握一次。':'握緊會壓得更扁，鬆手就會回彈。');
   else if(mapped[0] && !reading.armed)status('追蹤中',readyHint());
 }
@@ -241,7 +247,7 @@ function trackHand(detector,id){
   let lastFrame=-1,lastRun=-Infinity;
   function tick(now){
     if(id!==session || !live)return;
-    if(video.readyState>=2 && lastFrame!==video.currentTime && now-lastRun>=42){
+    if(video.readyState>=2 && lastFrame!==video.currentTime && now-lastRun>=30){
       lastFrame=video.currentTime;lastRun=now;
       try{
         const result=detector.detectForVideo(video,now);
@@ -258,7 +264,7 @@ function trackHand(detector,id){
             slot.lastSeen=now;
             slot.visual?.setGrip(hand.grip);
           }
-          const reading=slot.gate.sample(hand?.pose||'missing',now);
+          const reading=slot.gate.sample(hand?.pose||'missing',now,hand?.grip);
           if(reading.trigger)squeezeSlot(slot);
           return reading;
         });

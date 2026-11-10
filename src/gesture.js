@@ -35,32 +35,35 @@ export function readHand(landmarks, world, aspect=1) {
   return {pose,grip:clamp01((closure/4-.055)/.92)};
 }
 
-export function createGestureGate({hold=110,maxGap=190}={}) {
-  let armed=false, candidate=null, since=0, last=null, stable=null;
+export function createGestureGate() {
+  const confirmAfter=28;
+  const maxEvidenceGap=115;
+  let armed=false, candidate=null, since=0, lastEvidence=-Infinity;
   return {
     reset(){
       armed=false;
       candidate=null;
-      last=null;
-      stable=null;
+      lastEvidence=-Infinity;
     },
-    sample(pose,now){
-      if(last===null || now-last>maxGap || pose!==candidate){
+    sample(pose,now,grip){
+      // Use a separate release threshold so the middle of a squeeze cannot rearm it.
+      let evidence=pose;
+      if(pose==='uncertain'){
+        if(grip<=.22)evidence='open';
+        else if(grip>=.54)evidence='fist';
+      }
+      if(now-lastEvidence>maxEvidenceGap)candidate=null;
+      if(evidence!=='open'&&evidence!=='fist')return {armed,trigger:false,stable:null};
+      if(evidence!==candidate){
         since=now;
-        candidate=pose;
-        stable=null;
+        candidate=evidence;
       }
-      last=now;
-      let trigger=false;
-      if((pose==='open'||pose==='fist') && now-since>=hold){
-        stable=pose;
-        if(stable==='open')armed=true;
-        if(stable==='fist' && armed){
-          armed=false;
-          trigger=true;
-        }
-      }
-      return {armed,trigger,stable};
+      lastEvidence=now;
+      // Require two observations. One unclear frame may fall between them.
+      if(now-since<confirmAfter)return {armed,trigger:false,stable:null};
+      const trigger=candidate==='fist'&&armed;
+      armed=candidate==='open';
+      return {armed,trigger,stable:candidate};
     },
   };
 }
