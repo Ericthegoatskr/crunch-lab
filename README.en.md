@@ -12,7 +12,7 @@ Crack open a piece of Dubai chocolate or squeeze a vanilla cream puff until cust
 
 1. Choose **One** or **Two**, then pick what to squeeze. In two-item mode, choose a squishy for each side.
 2. Select **Start camera** and allow access. Bring your hand into view, open your palm, then make a fist. Open your hand between squeezes so the next one registers. In two-item mode, you can squeeze with either hand or both at once.
-3. Select the speaker icon to turn on sound. You can also use the on-screen buttons or the space bar without starting the camera.
+3. Sound is on by default. Select the speaker icon to mute it. You can also use the on-screen buttons or the space bar without starting the camera.
 
 The interface follows your browser’s language preferences. Use the menu in the top right to switch between Traditional Chinese, Simplified Chinese, and English. Your browser remembers your choice.
 

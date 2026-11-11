@@ -31,7 +31,7 @@ second.hidden=true;
 pair.append(second);
 const router=createHandRouter();
 let quantity=1, pickerTarget=0;
-let soundOn=false, live=null, pending=false, frame=0, session=0;
+let soundOn=true, live=null, pending=false, frame=0, session=0;
 const initialItem=specimens[choices.find(choice=>choice.checked).value];
 const slots=[first,second].map((root,index)=>{
   root.dataset.side=index===0?'left':'right';
@@ -161,7 +161,7 @@ for(const choice of choices){
     $('announcement').textContent=copy.switched(quantity===2?side(slot):'',copy.items[slot.item.id]);
   });
 }
-function squeezeSlot(slot,manual=false){
+async function squeezeSlot(slot,manual=false){
   if(!canSqueeze(slot))return;
   const {item}=slot;
   if(item.breakable){
@@ -171,12 +171,16 @@ function squeezeSlot(slot,manual=false){
     renderSlot(slot);
     renderControls();
     $('announcement').textContent=copy.stageChanged(quantity===2?side(slot):'',slot.stage,copy.stages[slot.stage]);
-    if(soundOn)playCrack(slot.stage,item.id);
     if(quantity===1 && slot.stage===3 && live)status('finished','finishedHint');
   }else{
     if(manual)slot.visual?.pulse();
-    if(soundOn)playPop(item.id);
   }
+  const stage=slot.stage;
+  if(!soundOn)return;
+  if(manual && !(await enableAudio()))return;
+  if(!soundOn)return;
+  if(item.breakable)playCrack(stage,item.id);
+  else playPop(item.id);
 }
 function manualSqueeze(){
   activeSlots().forEach(slot=>squeezeSlot(slot,true));
@@ -239,10 +243,10 @@ window.addEventListener('keydown',event=>{
   if(event.target instanceof Element && event.target.closest('button,a,input,textarea,select,[contenteditable]'))return;
   if(!squeeze.disabled){event.preventDefault();manualSqueeze();}
 });
-sound.addEventListener('click',async ()=>{
-  if(soundOn)soundOn=false;
-  else try{soundOn=await enableAudio();}catch{soundOn=false;}
+sound.addEventListener('click',()=>{
+  soundOn=!soundOn;
   muteAudio(!soundOn);
+  if(soundOn)void enableAudio();
   sound.setAttribute('aria-pressed',String(soundOn));
   sound.querySelector('use').setAttribute('href',soundOn?'#sound-icon':'#muted-icon');
 });
@@ -331,6 +335,8 @@ camera.addEventListener('click',async ()=>{
   if(!window.isSecureContext||!navigator.mediaDevices?.getUserMedia){
     status('cameraUnavailable','secureCamera');return;
   }
+  // Start audio during the click, before the permission request can consume user activation.
+  if(soundOn)void enableAudio();
   const id=++session;
   pending=true;
   camera.dataset.active='true';

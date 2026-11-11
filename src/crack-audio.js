@@ -5,18 +5,22 @@ let output;
 export async function enableAudio(){
   const Audio = window.AudioContext || window.webkitAudioContext;
   if(!Audio)return false;
-  if(!context){
-    context=new Audio();
-    const limiter=context.createDynamicsCompressor();
-    limiter.threshold.value=-12;
-    limiter.ratio.value=5;
-    limiter.attack.value=.001;
-    limiter.release.value=.10;
-    output=context.createGain();
-    output.connect(limiter).connect(context.destination);
+  try{
+    if(!context){
+      context=new Audio();
+      const limiter=context.createDynamicsCompressor();
+      limiter.threshold.value=-12;
+      limiter.ratio.value=5;
+      limiter.attack.value=.001;
+      limiter.release.value=.10;
+      output=context.createGain();
+      output.connect(limiter).connect(context.destination);
+    }
+    if(context.state!=='running')await context.resume();
+    return context.state==='running';
+  }catch{
+    return false;
   }
-  await context.resume();
-  return context.state==='running';
 }
 
 export function muteAudio(muted){
